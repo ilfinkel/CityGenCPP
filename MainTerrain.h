@@ -22,39 +22,6 @@ struct WeightedPoint
 	double weight;
 };
 
-struct PointLine
-{
-	PointLine(): line_begin(FVector(0, 0, 0)), line_end(FVector(0, 0, 0))
-	{
-	};
-
-	PointLine(const FVector& line_begin_, const FVector& line_end_)
-		: line_begin(line_begin_), line_end(line_end_)
-	{
-	};
-
-	PointLine(const FVector& line_begin_, const FVector& line_end_,
-	          point_type type_)
-		: line_begin(line_begin_), line_end(line_end_), type(type_)
-	{
-	};
-
-	FVector line_begin;
-	FVector line_end;
-
-
-	bool operator==(const PointLine& other_line_)
-	{
-		return (this->line_begin == other_line_.line_end &&
-				this->line_end == other_line_.line_begin) ||
-			(this->line_begin == other_line_.line_begin &&
-				this->line_end == other_line_.line_end);
-	};
-
-	double length() const { return FVector::Dist(line_begin, line_end); };
-	point_type type;
-};
-
 struct BasicNode
 {
 public:
@@ -90,24 +57,6 @@ struct Node : BasicNode
 	TArray<TSharedPtr<Node>> conn;
 };
 
-
-struct RiverLine : PointLine
-{
-	RiverLine(const FVector& line_begin_, const FVector& line_end_)
-		: PointLine(line_begin_, line_end_)
-	{
-		type = river;
-	};
-
-	RiverLine(const FVector& line_begin_, const FVector& line_end_,
-	          point_type type_)
-		: PointLine(line_begin_, line_end_, type_)
-	{
-		type = river;
-	};
-	FVector line_begin;
-	FVector line_end;
-};
 
 static double x_size = 5000;
 static double y_size = 5000;
@@ -181,8 +130,6 @@ private:
 	TArray<TSharedPtr<Node>> road_centers;
 	TArray<FVector> map_points_array;
 	TArray<TSharedPtr<Node>> map_borders_array;
-	// TArray<PointLine> map_lines_array;
-	TArray<PointLine> main_lines_array;
 	TArray<TSharedPtr<Node>> guididng_roads_array;
 	TArray<WeightedPoint> weighted_points;
 };
