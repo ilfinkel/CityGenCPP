@@ -10,7 +10,7 @@
 #include "HAL/Runnable.h"
 #include "MainTerrain.generated.h"
 
-enum point_type { main, road, river };
+enum point_type { main, main_road, road, river };
 
 struct WeightedPoint
 {
@@ -55,52 +55,56 @@ struct PointLine
 	point_type type;
 };
 
-struct Node
+struct BasicNode
 {
-	Node(double X, double Y, double Z): node(FVector(X, Y, Z))
+public:
+	BasicNode(double X, double Y, double Z): node(FVector(X, Y, Z))
 	{
 	};
 
-	Node(): node(FVector(0, 0, 0))
+	BasicNode(): node(FVector(0, 0, 0))
 	{
 	};
 
-	Node(FVector node_): node(FVector{node_.X, node_.Y, node_.Z})
+	BasicNode(FVector node_): node(FVector{node_.X, node_.Y, node_.Z})
 	{
 	};
-	// ~Node(){
-	// 	if(conn.Num() > 0)
-	// 	{
-	// 		for(auto c:conn)
-	// 		{
-	// 			for(int i = 0; i < c->conn.Num(); i++)
-	// 			{
-	// 				if(c->conn[i]->node==node)
-	// 				{
-	// 					c->conn[i] = nullptr;
-	// 					c->conn.RemoveAt(i);
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
 	FVector node;
+	point_type type;
+};
+
+struct Node : BasicNode
+{
+	Node(double X, double Y, double Z): BasicNode(X, Y, Z)
+	{
+	};
+
+	Node(): BasicNode(0, 0, 0)
+	{
+	};
+
+	Node(FVector node_): BasicNode(node_.X, node_.Y, node_.Z)
+	{
+	};
 	bool used = false;
 	TArray<TSharedPtr<Node>> conn;
 };
 
-struct RiverNode
+struct RiverNode : BasicNode
 {
-	RiverNode(): node(FVector(0, 0, 0))
+	RiverNode(double X, double Y, double Z): BasicNode(X, Y, Z)
 	{
 	};
 
-	RiverNode(FVector node_): node(FVector{node_.X, node_.Y, node_.Z})
+	RiverNode(): BasicNode(0, 0, 0)
+	{
+	};
+
+	RiverNode(FVector node_): BasicNode(node_.X, node_.Y, node_.Z)
 	{
 	};
 	TArray<TSharedPtr<RiverNode>> prev;
 	TArray<TSharedPtr<RiverNode>> next;
-	FVector node;
 };
 
 

@@ -272,6 +272,86 @@ void AMainTerrain::create_guiding_rivers()
 	                             MakeShared<RiverNode>(start_point));
 }
 
+void AMainTerrain::create_guiding_river_segment(
+	PointLine& starting_river, const TSharedPtr<RiverNode>& start_point)
+{
+	bool is_ending = false;
+	auto intersect_border = AllGeometry::is_intersect_array(starting_river, map_lines_array, false);
+	map_lines_array.Add(starting_river);
+	TSharedPtr<RiverNode> next_river;
+	if (intersect_border.IsSet())
+	{
+		for (auto& r : river)
+		{
+			if (!r->prev.IsEmpty())
+			{
+				for (auto& rprev : r->prev)
+				{
+					PointLine pl(rprev->node, r->node);
+					if (AllGeometry::is_intersect(starting_river, pl, false))
+					{
+						is_ending = true;
+						next_river = r;
+						break;
+					}
+				}
+				if (is_ending == true)
+				{
+					break;
+				}
+			}
+		}
+		is_ending = true;
+		starting_river.line_end = intersect_border->Key;
+	}
+
+	TSharedPtr<RiverNode> old_node = start_point;
+	// river.Add(old_node);
+	auto dist_times = FVector::Distance(starting_river.line_begin, starting_river.line_end) / (av_river_length);
+	for (int i = 1; i <= dist_times; i++)
+	{
+		RiverNode node;
+		auto node_ptr = MakeShared<RiverNode>(node);
+		node_ptr->prev.Add(old_node);
+		node_ptr->node = starting_river.line_begin + ((starting_river.line_end - starting_river.line_begin) / dist_times
+			* i);
+
+		old_node->next.Add(node_ptr);
+		river.Add(node_ptr);
+		old_node = node_ptr;
+	}
+	if (!is_ending)
+	{
+		auto next_segment = AllGeometry::create_segment_at_angle(starting_river, starting_river.line_end,
+		                                                         -60 + (rand() % 120),
+		                                                         (rand() % 20 + 20) * (av_river_length),
+		                                                         point_type::river);
+		create_guiding_river_segment(next_segment, old_node);
+		if (rand() % 4 >= 3)
+		{
+			auto next_segment1 = AllGeometry::create_segment_at_angle(starting_river, starting_river.line_end,
+			                                                          -60 + (rand() % 120),
+			                                                          (rand() % 20 + 20) * (av_river_length),
+			                                                          point_type::river);
+			create_guiding_river_segment(next_segment1, old_node);
+		}
+		if (rand() % 8 >= 3)
+		{
+			auto next_segment2 = AllGeometry::create_segment_at_angle(starting_river, starting_river.line_end,
+			                                                          -60 + (rand() % 120),
+			                                                          (rand() % 20 + 20) * (av_river_length),
+			                                                          point_type::river);
+			create_guiding_river_segment(next_segment2, old_node);
+		}
+	}
+	else if (next_river.IsValid())
+	{
+		next_river->prev.Add(old_node);
+		old_node->next.Add(next_river);
+	}
+}
+
+
 void AMainTerrain::create_guiding_roads()
 {
 	// double av_size = (x_size+y_size)/2;
@@ -375,6 +455,11 @@ void AMainTerrain::create_guiding_roads()
 	{
 		road_centers.Add(r);
 	}
+
+	for (auto& r : road_centers)
+	{
+		r->type = point_type::main_road;
+	}
 	// road.Sort([this](auto Item1, auto Item2) {
 	//   return FMath::FRand() < 0.5f;
 	// });
@@ -393,6 +478,41 @@ void AMainTerrain::create_guiding_roads()
 		{
 			create_guiding_road_segment(roads[i + 1], local_road[j]);
 		}
+	}
+}
+
+void AMainTerrain::create_guiding_road_segment(
+	TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point)
+{
+	if (AllGeometry::is_intersect_array(start_point, end_point, river, false).
+		IsSet())
+	{
+		return;
+	}
+
+	TSharedPtr<Node> old_node = start_point;
+	// river.Add(old_node);
+	int dist_times = FVector::Distance(start_point->node, end_point->node) / (av_road_length);
+	for (int i = 1; i <= dist_times; i++)
+	{
+		Node node(0, 0, 0);
+		node.type = point_type::main_road;
+		TSharedPtr<Node> node_ptr = MakeShared<Node>(node);
+		node_ptr->conn.Add(old_node);
+		node_ptr->node = start_point->node + ((end_point->node - start_point->node) / dist_times * i);
+		auto inter_node = AllGeometry::is_intersect_array_clear(old_node, node_ptr, roads, false);
+		if (inter_node.IsSet())
+		{
+			node_ptr = inter_node.GetValue();
+		}
+		if (i == dist_times)
+		{
+			node_ptr = end_point;
+		}
+
+		old_node->conn.Add(node_ptr);
+		roads.AddUnique(node_ptr);
+		old_node = node_ptr;
 	}
 }
 
@@ -419,8 +539,19 @@ void AMainTerrain::create_usual_roads()
 						r->conn[0]->node, r->node, r->node, angle_in_degrees, length);
 
 					TSharedPtr<Node> new_node = MakeShared<Node>(line1);
-
-					create_usual_road_segment(add_road, r, new_node);
+					bool is_possible = false;
+					for (auto rc : road_centers)
+					{
+						if (FVector::Distance(rc->node, line1) < rc->conn.Num() * (y_size / 14))
+						{
+							is_possible = true;
+							break;
+						}
+					}
+					if (is_possible)
+					{
+						create_usual_road_segment(add_road, r, new_node);
+					}
 				}
 			}
 			if (r->conn.Num() == 2 || r->conn.Num() == 1)
@@ -434,8 +565,19 @@ void AMainTerrain::create_usual_roads()
 					auto line2 = AllGeometry::create_segment_at_angle(
 						r->conn[0]->node, r->node, r->node, angle_in_degrees, length);
 					TSharedPtr<Node> new_node2 = MakeShared<Node>(line2);
-
-					create_usual_road_segment(add_road, r, new_node2);
+					bool is_possible = false;
+					for (auto rc : road_centers)
+					{
+						if (FVector::Distance(rc->node, line2) < rc->conn.Num() * (y_size / 14))
+						{
+							is_possible = true;
+							break;
+						}
+					}
+					if (is_possible)
+					{
+						create_usual_road_segment(add_road, r, new_node2);
+					}
 				}
 				if (rand() % 16 >= 8)
 				{
@@ -446,7 +588,19 @@ void AMainTerrain::create_usual_roads()
 					auto line3 = AllGeometry::create_segment_at_angle(
 						r->conn[0]->node, r->node, r->node, angle_in_degrees, length);
 					TSharedPtr<Node> new_node3 = MakeShared<Node>(line3);
-					create_usual_road_segment(add_road, r, new_node3);
+					bool is_possible = false;
+					for (auto rc : road_centers)
+					{
+						if (FVector::Distance(rc->node, line3) < rc->conn.Num() * (y_size / 14))
+						{
+							is_possible = true;
+							break;
+						}
+					}
+					if (is_possible)
+					{
+						create_usual_road_segment(add_road, r, new_node3);
+					}
 				}
 			}
 		}
@@ -507,118 +661,6 @@ void AMainTerrain::create_usual_road_segment(TArray<TSharedPtr<Node>>& array,
 	}
 }
 
-void AMainTerrain::create_guiding_river_segment(
-	PointLine& starting_river, const TSharedPtr<RiverNode>& start_point)
-{
-	bool is_ending = false;
-	auto intersect_border = AllGeometry::is_intersect_array(starting_river, map_lines_array, false);
-	map_lines_array.Add(starting_river);
-	TSharedPtr<RiverNode> next_river;
-	if (intersect_border.IsSet())
-	{
-		for (auto& r : river)
-		{
-			if (!r->prev.IsEmpty())
-			{
-				for (auto& rprev : r->prev)
-				{
-					PointLine pl(rprev->node, r->node);
-					if (AllGeometry::is_intersect(starting_river, pl, false))
-					{
-						is_ending = true;
-						next_river = r;
-						break;
-					}
-				}
-				if (is_ending == true)
-				{
-					break;
-				}
-			}
-		}
-		is_ending = true;
-		starting_river.line_end = intersect_border->Key;
-	}
-
-	TSharedPtr<RiverNode> old_node = start_point;
-	// river.Add(old_node);
-	auto dist_times = FVector::Distance(starting_river.line_begin, starting_river.line_end) / (av_river_length);
-	for (int i = 1; i <= dist_times; i++)
-	{
-		RiverNode node;
-		auto node_ptr = MakeShared<RiverNode>(node);
-		node_ptr->prev.Add(old_node);
-		node_ptr->node = starting_river.line_begin + ((starting_river.line_end - starting_river.line_begin) / dist_times
-			* i);
-
-		old_node->next.Add(node_ptr);
-		river.Add(node_ptr);
-		old_node = node_ptr;
-	}
-	if (!is_ending)
-	{
-		auto next_segment = AllGeometry::create_segment_at_angle(starting_river, starting_river.line_end,
-		                                                         -60 + (rand() % 120),
-		                                                         (rand() % 20 + 20) * (av_river_length),
-		                                                         point_type::river);
-		create_guiding_river_segment(next_segment, old_node);
-		if (rand() % 4 >= 3)
-		{
-			auto next_segment1 = AllGeometry::create_segment_at_angle(starting_river, starting_river.line_end,
-			                                                          -60 + (rand() % 120),
-			                                                          (rand() % 20 + 20) * (av_river_length),
-			                                                          point_type::river);
-			create_guiding_river_segment(next_segment1, old_node);
-		}
-		if (rand() % 8 >= 3)
-		{
-			auto next_segment2 = AllGeometry::create_segment_at_angle(starting_river, starting_river.line_end,
-			                                                          -60 + (rand() % 120),
-			                                                          (rand() % 20 + 20) * (av_river_length),
-			                                                          point_type::river);
-			create_guiding_river_segment(next_segment2, old_node);
-		}
-	}
-	else if (next_river.IsValid())
-	{
-		next_river->prev.Add(old_node);
-		old_node->next.Add(next_river);
-	}
-}
-
-void AMainTerrain::create_guiding_road_segment(
-	TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point)
-{
-	if (AllGeometry::is_intersect_array(start_point, end_point, river, false).
-		IsSet())
-	{
-		return;
-	}
-
-	TSharedPtr<Node> old_node = start_point;
-	// river.Add(old_node);
-	int dist_times = FVector::Distance(start_point->node, end_point->node) / (av_road_length);
-	for (int i = 1; i <= dist_times; i++)
-	{
-		Node node(0, 0, 0);
-		TSharedPtr<Node> node_ptr = MakeShared<Node>(node);
-		node_ptr->conn.Add(old_node);
-		node_ptr->node = start_point->node + ((end_point->node - start_point->node) / dist_times * i);
-		auto inter_node = AllGeometry::is_intersect_array_clear(old_node, node_ptr, roads, false);
-		if (inter_node.IsSet())
-		{
-			node_ptr = inter_node.GetValue();
-		}
-		if (i == dist_times)
-		{
-			node_ptr = end_point;
-		}
-
-		old_node->conn.Add(node_ptr);
-		roads.AddUnique(node_ptr);
-		old_node = node_ptr;
-	}
-}
 
 void AMainTerrain::point_shift(FVector& node)
 {
@@ -718,6 +760,11 @@ void AMainTerrain::draw_all()
 	{
 		for (auto rconn : r->conn)
 		{
+			if (r->type == point_type::main_road && rconn->type == point_type::main_road)
+			{
+				DrawDebugLine(GetWorld(), rconn->node, r->node, FColor::Green, true,
+				              -1, 0, 9);
+			}
 			DrawDebugLine(GetWorld(), rconn->node, r->node, FColor::Green, true,
 			              -1, 0, 5);
 		}
