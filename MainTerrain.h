@@ -90,23 +90,6 @@ struct Node : BasicNode
 	TArray<TSharedPtr<Node>> conn;
 };
 
-struct RiverNode : BasicNode
-{
-	RiverNode(double X, double Y, double Z): BasicNode(X, Y, Z)
-	{
-	};
-
-	RiverNode(): BasicNode(0, 0, 0)
-	{
-	};
-
-	RiverNode(FVector node_): BasicNode(node_.X, node_.Y, node_.Z)
-	{
-	};
-	TArray<TSharedPtr<RiverNode>> prev;
-	TArray<TSharedPtr<RiverNode>> next;
-};
-
 
 struct RiverLine : PointLine
 {
@@ -148,14 +131,8 @@ public:
 	static TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> is_intersect_array(
 		TSharedPtr<Node> line1_begin,
 		TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
-	static TOptional<TTuple<FVector, TTuple<TSharedPtr<RiverNode>, TSharedPtr<RiverNode>>>> is_intersect_array(
-		TSharedPtr<Node> line1_begin,
-		TSharedPtr<Node> line1_end, const TArray<TSharedPtr<RiverNode>> lines, bool is_opened);
 	static TOptional<TSharedPtr<Node>> is_intersect_array_clear(
 		TSharedPtr<Node> line1_begin, TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
-	static TOptional<TSharedPtr<RiverNode>> is_intersect_array_clear(
-		TSharedPtr<Node> line1_begin, TSharedPtr<Node> line1_end, const TArray<TSharedPtr<RiverNode>> lines,
-		bool is_opened);
 	static PointLine create_segment_at_angle(const PointLine& BaseSegment,
 	                                         const FVector& line_beginPoint,
 	                                         double angle_in_degrees, double length,
@@ -200,21 +177,23 @@ private:
 	void create_terrain();
 	void draw_all();
 	void tick_terrain();
-	void tick_river(TSharedPtr<RiverNode>& node);
+	void tick_river(TSharedPtr<Node>& node);
 	void tick_road(TSharedPtr<Node>& node);
 	void create_guiding_rivers();
+	void create_guiding_river_segment(TSharedPtr<Node> start_point, TSharedPtr<Node> end_point);
+	// void create_guiding_river_segment(PointLine& starting_river, const TSharedPtr<RiverNode>& start_point);
 	void create_guiding_roads();
 	void create_usual_roads();
 	void create_usual_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
 	                               TSharedPtr<Node> end_point);
-	void create_guiding_river_segment(PointLine& starting_river, const TSharedPtr<RiverNode>& start_point);
 	void create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
 	void point_shift(FVector& node);
-	TArray<TSharedPtr<RiverNode>> river;
+	TArray<TSharedPtr<Node>> river;
 	TArray<TSharedPtr<Node>> roads;
 	TArray<TSharedPtr<Node>> road_centers;
 	TArray<FVector> map_points_array;
-	TArray<PointLine> map_lines_array;
+	TArray<TSharedPtr<Node>> map_borders_array;
+	// TArray<PointLine> map_lines_array;
 	TArray<PointLine> main_lines_array;
 	TArray<TSharedPtr<Node>> guididng_roads_array;
 	TArray<WeightedPoint> weighted_points;
