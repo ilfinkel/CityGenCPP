@@ -115,17 +115,9 @@ static double y_size = 5000;
 class AllGeometry
 {
 public:
-	static void create_main_line(PointLine line);
-	static TOptional<FVector> is_intersect(const PointLine& line1,
-	                                       const PointLine& line2,
-	                                       bool is_opened);
-
 	static TOptional<FVector> is_intersect(FVector line1_begin,
 	                                       FVector line1_end, FVector line2_begin,
 	                                       FVector line2_end, bool is_opened);
-
-	static TOptional<TTuple<FVector, PointLine>> is_intersect_array(
-		PointLine line1, TArray<PointLine> lines, bool is_opened);
 
 
 	static TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> is_intersect_array(
@@ -133,10 +125,6 @@ public:
 		TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
 	static TOptional<TSharedPtr<Node>> is_intersect_array_clear(
 		TSharedPtr<Node> line1_begin, TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
-	static PointLine create_segment_at_angle(const PointLine& BaseSegment,
-	                                         const FVector& line_beginPoint,
-	                                         double angle_in_degrees, double length,
-	                                         point_type p_type);
 	static FVector create_segment_at_angle(const FVector& line_begin, const FVector& line_end,
 	                                       const FVector& line_beginPoint,
 	                                       double angle_in_degrees, double length);

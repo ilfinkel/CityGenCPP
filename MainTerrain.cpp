@@ -238,10 +238,11 @@ void AMainTerrain::create_terrain()
 
 void AMainTerrain::create_guiding_rivers()
 {
-	PointLine start_line(FVector(0, 0, 0), FVector(0, y_size, 0));
-	Node start_point((start_line.line_begin + start_line.line_end) / 2);
+	FVector start_river_point(0, 0, 0);
+	FVector end_river_point(0, y_size, 0);
+	Node start_point((start_river_point + end_river_point) / 2);
 
-	start_point.node = (start_line.line_begin + start_line.line_end) / 2;
+	start_point.node = (start_river_point + end_river_point) / 2;
 	FVector end_river = AllGeometry::create_segment_at_angle(FVector(0, 0, 0), FVector{0, y_size, 0},
 	                                                         start_point.node, -90 + (rand() % 20),
 	                                                         (rand() % 20 + 10) * (av_river_length)
@@ -316,87 +317,6 @@ void AMainTerrain::create_guiding_river_segment(TSharedPtr<Node> start_point,
 		}
 	}
 }
-
-//
-// void AMainTerrain::create_guiding_river_segment(
-// 	PointLine& starting_river, const TSharedPtr<RiverNode>& start_point)
-// {
-// 	bool is_ending = false;
-// 	auto intersect_border = AllGeometry::is_intersect_array(starting_river, map_lines_array, false);
-// 	map_lines_array.Add(starting_river);
-// 	TSharedPtr<RiverNode> next_river;
-// 	if (intersect_border.IsSet())
-// 	{
-// 		for (auto& r : river)
-// 		{
-// 			if (!r->prev.IsEmpty())
-// 			{
-// 				for (auto& rprev : r->prev)
-// 				{
-// 					PointLine pl(rprev->node, r->node);
-// 					if (AllGeometry::is_intersect(starting_river, pl, false))
-// 					{
-// 						is_ending = true;
-// 						next_river = r;
-// 						break;
-// 					}
-// 				}
-// 				if (is_ending == true)
-// 				{
-// 					break;
-// 				}
-// 			}
-// 		}
-// 		is_ending = true;
-// 		starting_river.line_end = intersect_border->Key;
-// 	}
-//
-// 	TSharedPtr<RiverNode> old_node = start_point;
-// 	// river.Add(old_node);
-// 	auto dist_times = FVector::Distance(starting_river.line_begin, starting_river.line_end) / (av_river_length);
-// 	for (int i = 1; i <= dist_times; i++)
-// 	{
-// 		RiverNode node;
-// 		auto node_ptr = MakeShared<RiverNode>(node);
-// 		node_ptr->prev.Add(old_node);
-// 		node_ptr->node = starting_river.line_begin + ((starting_river.line_end - starting_river.line_begin) / dist_times
-// 			* i);
-//
-// 		old_node->next.Add(node_ptr);
-// 		river.Add(node_ptr);
-// 		old_node = node_ptr;
-// 	}
-// 	if (!is_ending)
-// 	{
-// 		auto next_segment = AllGeometry::create_segment_at_angle(starting_river, starting_river.line_end,
-// 		                                                         -60 + (rand() % 120),
-// 		                                                         (rand() % 20 + 20) * (av_river_length),
-// 		                                                         point_type::river);
-// 		create_guiding_river_segment(next_segment, old_node);
-// 		if (rand() % 4 >= 3)
-// 		{
-// 			auto next_segment1 = AllGeometry::create_segment_at_angle(starting_river, starting_river.line_end,
-// 			                                                          -60 + (rand() % 120),
-// 			                                                          (rand() % 20 + 20) * (av_river_length),
-// 			                                                          point_type::river);
-// 			create_guiding_river_segment(next_segment1, old_node);
-// 		}
-// 		if (rand() % 8 >= 3)
-// 		{
-// 			auto next_segment2 = AllGeometry::create_segment_at_angle(starting_river, starting_river.line_end,
-// 			                                                          -60 + (rand() % 120),
-// 			                                                          (rand() % 20 + 20) * (av_river_length),
-// 			                                                          point_type::river);
-// 			create_guiding_river_segment(next_segment2, old_node);
-// 		}
-// 	}
-// 	else if (next_river.IsValid())
-// 	{
-// 		next_river->prev.Add(old_node);
-// 		old_node->next.Add(next_river);
-// 	}
-// }
-
 
 void AMainTerrain::create_guiding_roads()
 {
@@ -830,62 +750,6 @@ void AMainTerrain::draw_all()
 	// map_lines_array.Empty();
 }
 
-void AllGeometry::create_main_line(PointLine line)
-{
-}
-
-
-TOptional<FVector> AllGeometry::is_intersect(const PointLine& line1,
-                                             const PointLine& line2,
-                                             bool is_opened = false)
-{
-	double dx1 = line1.line_end.X - line1.line_begin.X;
-	double dy1 = line1.line_end.Y - line1.line_begin.Y;
-	double dx2 = line2.line_end.X - line2.line_begin.X;
-	double dy2 = line2.line_end.Y - line2.line_begin.Y;
-
-	double det = dx1 * dy2 - dx2 * dy1;
-
-	if (std::abs(det) < 1e-6)
-	{
-		return TOptional<FVector>();
-	}
-
-	double t1 = ((line2.line_begin.X - line1.line_begin.X) * dy2 -
-			(line2.line_begin.Y - line1.line_begin.Y) * dx2) /
-		det;
-	double t2 = ((line2.line_begin.X - line1.line_begin.X) * dy1 -
-			(line2.line_begin.Y - line1.line_begin.Y) * dx1) /
-		det;
-
-	if (t1 >= 0.0 && t1 <= 1.0 && t2 >= 0.0 && t2 <= 1.0)
-	{
-		FVector intersectionPoint(line1.line_begin.X + t1 * dx1,
-		                          line1.line_begin.Y + t1 * dy1, 0);
-		if (is_opened)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("intersected!"));
-			UE_LOG(LogTemp, Warning, TEXT("Point: %f,%f "), intersectionPoint.X,
-			       intersectionPoint.Y);
-			return intersectionPoint;
-		}
-		if (!is_opened && (FVector::Distance(intersectionPoint,
-		                                     line2.line_begin) >
-			TNumericLimits<double>::Min() &&
-			FVector::Distance(intersectionPoint, line2.line_end) >
-			TNumericLimits<double>::Min() &&
-			FVector::Distance(intersectionPoint, line1.line_begin) >
-			TNumericLimits<double>::Min() &&
-			FVector::Distance(intersectionPoint, line1.line_end) >
-			TNumericLimits<double>::Min()))
-		{
-			return intersectionPoint;
-		}
-	}
-
-	return TOptional<FVector>(); // No collision
-}
-
 TOptional<FVector> AllGeometry::is_intersect(FVector line1_begin,
                                              FVector line1_end,
                                              FVector line2_begin,
@@ -937,35 +801,6 @@ TOptional<FVector> AllGeometry::is_intersect(FVector line1_begin,
 	return TOptional<FVector>();
 }
 
-TOptional<TTuple<FVector, PointLine>> AllGeometry::is_intersect_array(
-	const PointLine line1, const TArray<PointLine> lines,
-	bool is_opened = false)
-{
-	PointLine point_line(FVector(0, 0, 0), FVector(0, 0, 0), main);
-	double dist = TNumericLimits<double>::Max();
-	FVector intersect_point_final(0, 0, 0);
-	for (auto& line : lines)
-	{
-		TOptional<FVector> int_point = is_intersect(line1, line, is_opened);
-		if (int_point.IsSet())
-		{
-			double dist_to_line =
-				FVector::Dist(line1.line_begin, int_point.GetValue());
-			if (dist_to_line < dist)
-			{
-				point_line = line;
-				dist = dist_to_line;
-				intersect_point_final = int_point.GetValue();
-			}
-		}
-	}
-	if (dist == TNumericLimits<double>::Max())
-	{
-		return TOptional<TTuple<FVector, PointLine>>();
-	}
-	TTuple<FVector, PointLine> final_tuple{intersect_point_final, point_line};
-	return final_tuple;
-}
 
 TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>>
 AllGeometry::is_intersect_array(TSharedPtr<Node> line1_begin,
@@ -1020,34 +855,6 @@ TOptional<TSharedPtr<Node>> AllGeometry::is_intersect_array_clear(TSharedPtr<Nod
 		       : inter_segment->Value.Value;
 }
 
-
-PointLine AllGeometry::create_segment_at_angle(const PointLine& BaseSegment, const FVector& line_beginPoint,
-                                               double angle_in_degrees, double length, point_type p_type)
-{
-	double Dx = BaseSegment.line_end.X - BaseSegment.line_begin.X;
-	double Dy = BaseSegment.line_end.Y - BaseSegment.line_begin.Y;
-
-	double AngleInRadians = FMath::DegreesToRadians(angle_in_degrees);
-
-	double NewX = line_beginPoint.X + (Dx * FMath::Cos(AngleInRadians) - Dy * FMath::Sin(AngleInRadians));
-	double NewY = line_beginPoint.Y + (Dx * FMath::Sin(AngleInRadians) + Dy * FMath::Cos(AngleInRadians));
-
-	FVector line_endPointBL{NewX, NewY, BaseSegment.line_end.Z};
-
-	PointLine NewSegmentBL(line_beginPoint, line_endPointBL);
-
-	Dx = NewSegmentBL.line_end.X - NewSegmentBL.line_begin.X;
-	Dy = NewSegmentBL.line_end.Y - NewSegmentBL.line_begin.Y;
-
-	NewX = line_beginPoint.X + Dx * length / NewSegmentBL.length();
-	NewY = line_beginPoint.Y + Dy * length / NewSegmentBL.length();
-
-	FVector line_endPoint(NewX, NewY, BaseSegment.line_end.Z);
-	PointLine NewSegment(line_beginPoint, line_endPoint);
-	NewSegment.type = p_type;
-
-	return NewSegment;
-}
 
 FVector AllGeometry::create_segment_at_angle(const FVector& line_begin, const FVector& line_end,
                                              const FVector& line_beginPoint, double angle_in_degrees, double length)
