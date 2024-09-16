@@ -1,5 +1,6 @@
 #include "MainTerrain.h"
 
+#include "LocalizationDescriptor.h"
 #include "Async/AsyncWork.h"
 
 AMainTerrain::AMainTerrain() { PrimaryActorTick.bCanEverTick = true; }
@@ -9,15 +10,13 @@ void AMainTerrain::BeginPlay()
 	Super::BeginPlay();
 
 	create_terrain();
-	// map_borders_array.Reset();
-	tick_terrain();
-	// map_lines_array.SetNum(4);
 	int old_nodes = 0;
 	while (roads.Num() != old_nodes)
 	{
 		old_nodes = roads.Num();
 		create_usual_roads();
 	}
+	shrink_roads();
 	// old_nodes = 0;
 	// while (roads.Num() != old_nodes)
 	// {
@@ -41,55 +40,6 @@ void AMainTerrain::Tick(float DeltaTime)
 	// draw_all();
 }
 
-void AMainTerrain::tick_terrain()
-{
-	for (int iter = 0; iter < 100; iter++)
-	{
-		for (auto& r : river)
-		{
-			tick_river(r);
-		}
-		// main_lines_array.Reset();
-	}
-
-	// for (auto r : river)
-	// {
-	// 	if (!r->prev.IsEmpty())
-	// 	{
-	// 		main_lines_array.Add(PointLine{
-	// 			r->prev[0]->node, r->node, point_type::river
-	// 		});
-	// 	}
-	// }
-
-	for (int iter = 0; iter < 1000; iter++)
-	{
-		for (auto& r : roads)
-		{
-			r->used = false;
-		}
-
-		for (auto& road_center : road_centers)
-		{
-			road_center->used = true;
-		}
-
-		for (auto& r : roads)
-		{
-			tick_road(r);
-		}
-	}
-
-	// for (auto r : roads)
-	// {
-	// 	for (auto rconn : r->conn)
-	// 	{
-	// 		main_lines_array.Add(PointLine{
-	// 			rconn->node, r->node, point_type::road
-	// 		});
-	// 	}
-	// }
-}
 
 void AMainTerrain::tick_river(TSharedPtr<Node>& node)
 {
@@ -232,8 +182,36 @@ void AMainTerrain::create_terrain()
 			});
 		}
 	}
+
+
 	create_guiding_rivers();
+
+	for (int iter = 0; iter < 100; iter++)
+	{
+		for (auto& r : river)
+		{
+			tick_river(r);
+		}
+	}
 	create_guiding_roads();
+
+	for (int iter = 0; iter < 1000; iter++)
+	{
+		for (auto& r : roads)
+		{
+			r->used = false;
+		}
+
+		for (auto& road_center : road_centers)
+		{
+			road_center->used = true;
+		}
+
+		for (auto& r : roads)
+		{
+			tick_road(r);
+		}
+	}
 }
 
 void AMainTerrain::create_guiding_rivers()
@@ -396,10 +374,11 @@ void AMainTerrain::create_guiding_roads()
 			roads.Add(weighted_road_centers[i].Value);
 		}
 	}
-	// расставляем мосты
+	// placing bridges
 	for (auto r : river)
 	{
-		if (rand() % 8 >= 6 && r->conn.Num() == 2)
+		if (FVector::Dist(r->node, FVector(x_size / 2, y_size / 2, 0)) < (y_size / 3) && rand() % 8 >= 6 && r->conn.
+			Num() == 2)
 		{
 			Node bridge1(AllGeometry::create_segment_at_angle(r->conn[0]->node, r->node, r->node, 90,
 			                                                  FVector::Dist(r->conn[0]->node, r->node) / 2));
@@ -482,6 +461,25 @@ void AMainTerrain::create_guiding_road_segment(
 	}
 }
 
+void AMainTerrain::shrink_roads()
+{
+	int road_points = roads.Num();
+	int old_road_points = TNumericLimits<int>::Max();
+	while (road_points != old_road_points)
+	{
+		old_road_points = roads.Num();
+		for (int i = road_points - 1; i >= 0; i--)
+		{
+			if (roads[i]->conn.Num() < 2)
+			{
+				roads[i]->delete_me();
+				roads.RemoveAt(i);
+			}
+		}
+		road_points = roads.Num();
+	}
+}
+
 void AMainTerrain::create_usual_roads()
 {
 	roads.Sort([this](auto Item1, auto Item2)
@@ -495,7 +493,7 @@ void AMainTerrain::create_usual_roads()
 		{
 			if (r->conn.Num() == 1)
 			{
-				if (rand() % 8 >= 3)
+				if (rand() % 16 >= 8)
 				{
 					auto length = FVector::Distance(r->node, r->conn[0]->node) + (rand() % 20) - 10;
 					if (length < min_road_length) { length = min_road_length; }
@@ -522,7 +520,7 @@ void AMainTerrain::create_usual_roads()
 			}
 			if (r->conn.Num() == 2 || r->conn.Num() == 1)
 			{
-				if (rand() % 16 >= 11)
+				if (rand() % 16 >= 8)
 				{
 					auto length = FVector::Distance(r->node, r->conn[0]->node) + (rand() % 20) - 10;
 					if (length < min_road_length) { length = min_road_length; }
@@ -574,11 +572,11 @@ void AMainTerrain::create_usual_roads()
 		r->used = true;
 	}
 	roads += add_road;
-	for (int count = 0; count < 2; count++)
+	for (int i = 0; i < roads.Num(); i++)
 	{
-		for (int i = 0; i < roads.Num(); i++)
+		if (!roads[i]->used)
 		{
-			if (!roads[i]->used)
+			for (int count = 0; count < 3; count++)
 			{
 				tick_road(roads[i]);
 			};

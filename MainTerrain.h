@@ -22,39 +22,50 @@ struct WeightedPoint
 	double weight;
 };
 
-struct BasicNode
+struct Node
 {
-public:
-	BasicNode(double X, double Y, double Z): node(FVector(X, Y, Z))
+	Node(double X, double Y, double Z): node(FVector(X, Y, Z))
 	{
 	};
 
-	BasicNode(): node(FVector(0, 0, 0))
+	Node(): node(FVector(0, 0, 0))
 	{
 	};
 
-	BasicNode(FVector node_): node(FVector{node_.X, node_.Y, node_.Z})
+	Node(FVector node_): Node(node_.X, node_.Y, node_.Z)
 	{
 	};
+
 	FVector node;
 	point_type type;
-};
-
-struct Node : BasicNode
-{
-	Node(double X, double Y, double Z): BasicNode(X, Y, Z)
-	{
-	};
-
-	Node(): BasicNode(0, 0, 0)
-	{
-	};
-
-	Node(FVector node_): BasicNode(node_.X, node_.Y, node_.Z)
-	{
-	};
 	bool used = false;
 	TArray<TSharedPtr<Node>> conn;
+
+	friend bool operator==(const Node& Lhs, const Node& RHS)
+	{
+		return Lhs.node == RHS.node
+			&& Lhs.type == RHS.type;
+	}
+
+	friend bool operator!=(const Node& Lhs, const Node& RHS)
+	{
+		return !(Lhs == RHS);
+	}
+
+	void delete_me()
+	{
+		for (auto c : conn)
+		{
+			for (int i = 0; i < c->conn.Num(); i++)
+			{
+				if (node == c->conn[i]->node)
+				{
+					c->conn.RemoveAt(i);
+					break;
+				}
+			}
+		}
+	};
 };
 
 
@@ -113,7 +124,6 @@ protected:
 private:
 	void create_terrain();
 	void draw_all();
-	void tick_terrain();
 	void tick_river(TSharedPtr<Node>& node);
 	void tick_road(TSharedPtr<Node>& node);
 	void create_guiding_rivers();
@@ -124,6 +134,7 @@ private:
 	void create_usual_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
 	                               TSharedPtr<Node> end_point);
 	void create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
+	void shrink_roads();
 	void point_shift(FVector& node);
 	TArray<TSharedPtr<Node>> river;
 	TArray<TSharedPtr<Node>> roads;
