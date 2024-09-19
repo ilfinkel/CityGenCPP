@@ -109,9 +109,9 @@ public:
 	;
 	double y_size_in = 2000;
 	double av_river_length = ((x_size + y_size) / 2) / 20;
-	double av_road_length = ((x_size + y_size) / 2) / 40;
-	double min_road_length = 50; //((x_size + y_size) / 2) / 50;
-	double max_road_length = 70; //((x_size + y_size) / 2) / 30;
+	double min_road_length = 20; //((x_size + y_size) / 2) / 100;
+	double av_road_length = 45; //((x_size + y_size) / 2) / 80;
+	double max_road_length = 90; //((x_size + y_size) / 2) / 60;
 	double river_road_distance = 90; //((x_size + y_size) / 2) / 20;
 
 protected:
@@ -133,7 +133,7 @@ private:
 	void create_usual_roads();
 	void create_usual_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
 	                               TSharedPtr<Node> end_point);
-	void create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
+	bool create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
 	void shrink_roads();
 	void point_shift(FVector& node);
 	TArray<TSharedPtr<Node>> river;

@@ -1,6 +1,5 @@
 #include "MainTerrain.h"
 
-#include "LocalizationDescriptor.h"
 #include "Async/AsyncWork.h"
 
 AMainTerrain::AMainTerrain() { PrimaryActorTick.bCanEverTick = true; }
@@ -17,18 +16,6 @@ void AMainTerrain::BeginPlay()
 		create_usual_roads();
 	}
 	shrink_roads();
-	// old_nodes = 0;
-	// while (roads.Num() != old_nodes)
-	// {
-	// 	old_nodes = roads.Num();
-	// 	for(int i = roads.Num()-1; i >= 0 ; i--)
-	// 	{
-	// 		if(roads[i]->conn.Num()<2)
-	// 		{
-	// 			roads[i]= nullptr;
-	// 		}
-	// 	}
-	// }
 	draw_all();
 }
 
@@ -76,8 +63,7 @@ void AMainTerrain::tick_river(TSharedPtr<Node>& node)
 			break;
 		}
 
-		if (
-			FVector::Distance(node->node, node->conn[i]->node) > (y_size / 15))
+		if (FVector::Distance(node->node, node->conn[i]->node) > (y_size / 15))
 		{
 			node->node = all_point / count;
 			break;
@@ -140,7 +126,6 @@ void AMainTerrain::tick_road(TSharedPtr<Node>& node)
 			}
 		}
 	}
-	// node->used = true;
 }
 
 void AMainTerrain::create_terrain()
@@ -161,7 +146,7 @@ void AMainTerrain::create_terrain()
 	map_borders_array.Add(MakeShared<Node>(map_node2));
 	map_borders_array.Add(MakeShared<Node>(map_node3));
 	map_borders_array.Add(MakeShared<Node>(map_node4));
-	double points_count = 81;
+	double points_count = 64;
 	double av_size = (x_size + y_size) / 2;
 
 	weighted_points.Empty();
@@ -195,7 +180,7 @@ void AMainTerrain::create_terrain()
 	}
 	create_guiding_roads();
 
-	for (int iter = 0; iter < 1000; iter++)
+	for (int iter = 0; iter < 100; iter++)
 	{
 		for (auto& r : roads)
 		{
@@ -419,20 +404,21 @@ void AMainTerrain::create_guiding_roads()
 				return FVector::Distance(roads[i + 1]->node, Item1->node) < FVector::Distance(
 					roads[i + 1]->node, Item2->node);
 			});
-		for (int j = 0; j < 3 && j < local_road.Num() - 1; j++)
+		int success_roads = 0;
+		for (int j = 0; j < local_road.Num() - 1 && success_roads < 4; j++)
 		{
-			create_guiding_road_segment(roads[i + 1], local_road[j]);
+			success_roads += create_guiding_road_segment(roads[i + 1], local_road[j]);
 		}
 	}
 }
 
-void AMainTerrain::create_guiding_road_segment(
+bool AMainTerrain::create_guiding_road_segment(
 	TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point)
 {
 	if (AllGeometry::is_intersect_array(start_point, end_point, river, false).
 		IsSet())
 	{
-		return;
+		return false;
 	}
 
 	TSharedPtr<Node> old_node = start_point;
@@ -459,6 +445,7 @@ void AMainTerrain::create_guiding_road_segment(
 		roads.AddUnique(node_ptr);
 		old_node = node_ptr;
 	}
+	return true;
 }
 
 void AMainTerrain::shrink_roads()
@@ -487,13 +474,29 @@ void AMainTerrain::create_usual_roads()
 		return FMath::FRand() < 0.5f;
 	});
 	TArray<TSharedPtr<Node>> add_road;
+	int forward;
+	int left;
+	int right;
+
 	for (auto r : roads)
 	{
 		if (!r->used)
 		{
+			if (r->type == point_type::main_road)
+			{
+				forward = 6;
+				left = 11;
+				right = 11;
+			}
+			else
+			{
+				forward = 3;
+				left = 10;
+				right = 10;
+			}
 			if (r->conn.Num() == 1)
 			{
-				if (rand() % 16 >= 8)
+				if (rand() % 16 >= forward)
 				{
 					auto length = FVector::Distance(r->node, r->conn[0]->node) + (rand() % 20) - 10;
 					if (length < min_road_length) { length = min_road_length; }
@@ -506,7 +509,7 @@ void AMainTerrain::create_usual_roads()
 					bool is_possible = false;
 					for (auto rc : road_centers)
 					{
-						if (FVector::Distance(rc->node, line1) < rc->conn.Num() * (y_size / 14))
+						if (FVector::Distance(rc->node, line1) < rc->conn.Num() * (y_size / 28))
 						{
 							is_possible = true;
 							break;
@@ -520,7 +523,7 @@ void AMainTerrain::create_usual_roads()
 			}
 			if (r->conn.Num() == 2 || r->conn.Num() == 1)
 			{
-				if (rand() % 16 >= 8)
+				if (rand() % 16 >= left)
 				{
 					auto length = FVector::Distance(r->node, r->conn[0]->node) + (rand() % 20) - 10;
 					if (length < min_road_length) { length = min_road_length; }
@@ -532,7 +535,7 @@ void AMainTerrain::create_usual_roads()
 					bool is_possible = false;
 					for (auto rc : road_centers)
 					{
-						if (FVector::Distance(rc->node, line2) < rc->conn.Num() * (y_size / 14))
+						if (FVector::Distance(rc->node, line2) < rc->conn.Num() * (y_size / 28))
 						{
 							is_possible = true;
 							break;
@@ -543,7 +546,7 @@ void AMainTerrain::create_usual_roads()
 						create_usual_road_segment(add_road, r, new_node2);
 					}
 				}
-				if (rand() % 16 >= 8)
+				if (rand() % 16 >= right)
 				{
 					auto length = FVector::Distance(r->node, r->conn[0]->node) + (rand() % 20) - 10;
 					if (length < min_road_length) { length = min_road_length; }
@@ -555,7 +558,7 @@ void AMainTerrain::create_usual_roads()
 					bool is_possible = false;
 					for (auto rc : road_centers)
 					{
-						if (FVector::Distance(rc->node, line3) < rc->conn.Num() * (y_size / 14))
+						if (FVector::Distance(rc->node, line3) < rc->conn.Num() * (y_size / 28))
 						{
 							is_possible = true;
 							break;
@@ -615,7 +618,6 @@ void AMainTerrain::create_usual_road_segment(TArray<TSharedPtr<Node>>& array,
 		end_point = intersection.GetValue();
 	}
 
-
 	auto river_intersection = AllGeometry::is_intersect_array_clear(start_point, end_point, river, false);
 	if (!river_intersection.IsSet())
 	{
@@ -624,7 +626,6 @@ void AMainTerrain::create_usual_road_segment(TArray<TSharedPtr<Node>>& array,
 		array.Add(end_point);
 	}
 }
-
 
 void AMainTerrain::point_shift(FVector& node)
 {
@@ -647,69 +648,6 @@ void AMainTerrain::draw_all()
 {
 	FlushPersistentDebugLines(GetWorld());
 
-	// for (auto& it : main_lines_array) {
-	//   FColor color;
-	//   double point_radius = 10.0f;
-	//   switch (it.type) {
-	//     case point_type::main:
-	//       color = FColor::White;
-	//       point_radius = 25.0f;
-	//       // DrawDebugSphere(GetWorld(), it.line_begin, 1, 8, color, true);
-	//       // DrawDebugSphere(GetWorld(), it.line_end, 1, 8, color, true);
-	//       break;
-	//     case point_type::road:
-	//       color = FColor::Green;
-	//       point_radius = 10.0f;
-	//       // DrawDebugSphere(GetWorld(), it.line_begin, 20, 8, color, true);
-	//       // DrawDebugSphere(GetWorld(), it.line_end, 20, 8, color, true);
-	//       break;
-	//     case point_type::river:
-	//       color = FColor::Blue;
-	//       point_radius = 20.0f;
-	//       // DrawDebugSphere(GetWorld(), it.line_begin, 40, 1, color, true);
-	//       // DrawDebugSphere(GetWorld(), it.line_end, 40, 1, color, true);
-	//       break;
-	//   }
-	//   // DrawDebugSphere(GetWorld(), it.line_begin, point_radius, 8, color,
-	//   // true); DrawDebugSphere(GetWorld(), it.line_end, point_radius, 8, color,
-	//   // true);
-	//   DrawDebugLine(GetWorld(), it.line_begin, it.line_end, color, true, -1, 0,
-	//                 10);
-	// }
-	//
-	// for (auto& it : map_lines_array)
-	// {
-	// 	FColor color;
-	// 	double point_radius = 10.0f;
-	// 	switch (it.type)
-	// 	{
-	// 	case main:
-	// 		color = FColor::White;
-	// 		point_radius = 25.0f;
-	// 	// DrawDebugSphere(GetWorld(), it.line_begin, 1, 8, color, true);
-	// 	// DrawDebugSphere(GetWorld(), it.line_end, 1, 8, color, true);
-	// 		break;
-	// 	case point_type::road:
-	// 		color = FColor::Green;
-	// 		point_radius = 10.0f;
-	// 		DrawDebugSphere(GetWorld(), it.line_begin, 20, 8, color, true);
-	// 		DrawDebugSphere(GetWorld(), it.line_end, 20, 8, color, true);
-	// 		break;
-	// 	case point_type::river:
-	// 		color = FColor::Blue;
-	// 		point_radius = 20.0f;
-	// 		DrawDebugSphere(GetWorld(), it.line_begin, 1, 8, color, true);
-	// 		DrawDebugSphere(GetWorld(), it.line_end, 1, 8, color, true);
-	// 		break;
-	// 	}
-	//
-	// 	// DrawDebugSphere(GetWorld(), it.line_begin, point_radius, 8, color,
-	// 	// true); DrawDebugSphere(GetWorld(), it.line_end, point_radius, 8, color,
-	// 	// true);
-	// 	DrawDebugLine(GetWorld(), it.line_begin, it.line_end, color, true, -1,
-	// 	              0,
-	// 	              10);
-	// }
 	for (auto b : map_borders_array)
 	{
 		for (auto bconn : b->conn)
@@ -737,15 +675,13 @@ void AMainTerrain::draw_all()
 				DrawDebugLine(GetWorld(), rconn->node, r->node, FColor::Green, true,
 				              -1, 0, 9);
 			}
-			DrawDebugLine(GetWorld(), rconn->node, r->node, FColor::Green, true,
-			              -1, 0, 5);
+			else
+			{
+				DrawDebugLine(GetWorld(), rconn->node, r->node, FColor::Green, true,
+				              -1, 0, 5);
+			}
 		}
-		// if (r->used)
-		// {
-		// 	DrawDebugSphere(GetWorld(), r->node, 8, 8, FColor::White, true);
-		// }
 	}
-	// map_lines_array.Empty();
 }
 
 TOptional<FVector> AllGeometry::is_intersect(FVector line1_begin,
