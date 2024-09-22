@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "HAL/Runnable.h"
+#include "ProceduralMeshComponent.h"
 #include "MainTerrain.generated.h"
 
 enum point_type { main, main_road, road, river };
@@ -83,14 +84,17 @@ public:
 	static TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> is_intersect_array(
 		TSharedPtr<Node> line1_begin,
 		TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
+	static int is_intersect_array_counter(TSharedPtr<Node> line1_begin, TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
+	static void create_mesh(UProceduralMeshComponent* Mesh, TArray<FVector> BaseVertices, float ExtrusionHeight);
 	static TOptional<TSharedPtr<Node>> is_intersect_array_clear(
 		TSharedPtr<Node> line1_begin, TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
 	static FVector create_segment_at_angle(const FVector& line_begin, const FVector& line_end,
 	                                       const FVector& line_beginPoint,
 	                                       double angle_in_degrees, double length);
-
-	static double calculate_angle(FVector A, FVector B,
-	                              FVector C);
+	static double calculate_angle(FVector A, FVector B, FVector C);
+	static void get_closed_figures(TArray<TSharedPtr<Node>> lines);
+	static void get_figure(TArray<TSharedPtr<Node>> lines, TArray<TSharedPtr<Node>>& node_array, TSharedPtr<Node> node1, TSharedPtr<Node> node2);
+	static void get_into_figure(TArray<TSharedPtr<Node>> lines, TArray<TSharedPtr<Node>>& node_array);
 };
 
 
@@ -109,9 +113,9 @@ public:
 	;
 	double y_size_in = 2000;
 	double av_river_length = ((x_size + y_size) / 2) / 20;
-	double min_road_length = 20; //((x_size + y_size) / 2) / 100;
-	double av_road_length = 45; //((x_size + y_size) / 2) / 80;
-	double max_road_length = 90; //((x_size + y_size) / 2) / 60;
+	double min_road_length = ((x_size + y_size) / 2) / 100;
+	double av_road_length = ((x_size + y_size) / 2) / 80;
+	double max_road_length = ((x_size + y_size) / 2) / 60;
 	double river_road_distance = 90; //((x_size + y_size) / 2) / 20;
 
 protected:

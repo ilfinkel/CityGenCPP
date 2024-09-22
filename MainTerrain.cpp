@@ -1,4 +1,4 @@
-#include "MainTerrain.h"
+﻿#include "MainTerrain.h"
 
 #include "Async/AsyncWork.h"
 
@@ -486,13 +486,13 @@ void AMainTerrain::create_usual_roads()
 			{
 				forward = 6;
 				left = 11;
-				right = 11;
+				right = 12;
 			}
 			else
 			{
 				forward = 3;
 				left = 10;
-				right = 10;
+				right = 11;
 			}
 			if (r->conn.Num() == 1)
 			{
@@ -773,6 +773,99 @@ AllGeometry::is_intersect_array(TSharedPtr<Node> line1_begin,
 	return final_tuple;
 }
 
+int AllGeometry::is_intersect_array_counter(TSharedPtr<Node> line1_begin,
+	TSharedPtr<Node> line1_end,
+	const TArray<TSharedPtr<Node>> lines,
+	bool is_opened)
+{
+	int counter = 0;
+	TTuple<TSharedPtr<Node>, TSharedPtr<Node>> point_line;
+	double dist = TNumericLimits<double>::Max();
+	for (auto& line : lines)
+	{
+		for (auto& conn : line->conn)
+		{
+			TOptional<FVector> int_point = is_intersect(
+				line1_begin->node, line1_end->node, line->node, conn->node, is_opened);
+			if (int_point.IsSet())
+			{
+				counter++;
+			}
+		}
+	}
+	return counter/2;
+}
+
+void AllGeometry::create_mesh(UProceduralMeshComponent* Mesh, TArray<FVector> BaseVertices, float ExtrusionHeight)
+{
+	TArray<FVector> Vertices;
+	TArray<int32> Triangles;
+
+	// Шаг 1: Добавляем вершины базовой фигуры и экструзированные вершины
+	int32 NumBaseVertices = BaseVertices.Num();
+
+	// Добавляем вершины плоской фигуры (нижняя плоскость)
+	for (FVector Vertex : BaseVertices)
+	{
+		Vertices.Add(Vertex);  // Нижняя грань
+	}
+
+	// Добавляем экструзированные вершины (верхняя плоскость)
+	for (FVector Vertex : BaseVertices)
+	{
+		Vertices.Add(Vertex + FVector(0, 0, ExtrusionHeight));  // Верхняя грань
+	}
+
+	// Шаг 2: Создаем треугольники для боковых граней
+	for (int32 i = 0; i < NumBaseVertices; i++)
+	{
+		int32 NextIndex = (i + 1) % NumBaseVertices;  // Индекс следующей вершины для замыкания
+
+		// Боковая грань (состоит из двух треугольников)
+		Triangles.Add(i);                        // Нижняя грань (текущая вершина)
+		Triangles.Add(i + NumBaseVertices);      // Верхняя грань (текущая экструзированная вершина)
+		Triangles.Add(NextIndex);                // Нижняя грань (следующая вершина)
+
+		Triangles.Add(NextIndex);                // Нижняя грань (следующая вершина)
+		Triangles.Add(i + NumBaseVertices);      // Верхняя грань (текущая экструзированная вершина)
+		Triangles.Add(NextIndex + NumBaseVertices);  // Верхняя грань (следующая экструзированная вершина)
+	}
+
+	// Шаг 3: Создаем треугольники для нижней грани
+	for (int32 i = 1; i < NumBaseVertices - 1; i++)
+	{
+		Triangles.Add(0);
+		Triangles.Add(i);
+		Triangles.Add(i + 1);
+	}
+
+	// Шаг 4: Создаем треугольники для верхней грани (перевёрнутые индексы, чтобы нормали смотрели вверх)
+	for (int32 i = 1; i < NumBaseVertices - 1; i++)
+	{
+		Triangles.Add(NumBaseVertices);  // Начальная точка верхней грани
+		Triangles.Add(NumBaseVertices + i + 1);
+		Triangles.Add(NumBaseVertices + i);
+	}
+
+	// Шаг 5: Создаем нормали, UV и другие параметры (опционально)
+	TArray<FVector> Normals;
+	TArray<FVector2D> UVs;
+	TArray<FLinearColor> VertexColors;
+	TArray<FProcMeshTangent> Tangents;
+
+	// Добавляем заготовки для нормалей, UV и т.д.
+	for (int32 i = 0; i < Vertices.Num(); i++)
+	{
+		Normals.Add(FVector(0, 0, 1)); // Пример, что все нормали смотрят вверх
+		UVs.Add(FVector2D(0, 0)); // Заглушка UV
+		VertexColors.Add(FLinearColor::White); // Цвет вершин (белый)
+		Tangents.Add(FProcMeshTangent(1, 0, 0)); // Пример тангенса
+	}
+
+	// Шаг 6: Создаем Mesh секцию
+	Mesh->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UVs, VertexColors, Tangents, true);
+}
+
 
 TOptional<TSharedPtr<Node>> AllGeometry::is_intersect_array_clear(TSharedPtr<Node> line1_begin,
                                                                   TSharedPtr<Node> line1_end,
@@ -827,4 +920,44 @@ double AllGeometry::calculate_angle(const FVector A, const FVector B,
 	double AngleRadians = FMath::Acos(CosTheta);
 	double AngleDegrees = FMath::RadiansToDegrees(AngleRadians);
 	return AngleDegrees;
+}
+
+void AllGeometry::get_closed_figures(TArray<TSharedPtr<Node>> lines)
+{
+	for (auto l : lines) {
+		l->used = false;
+	}
+}
+
+void AllGeometry::get_figure(TArray<TSharedPtr<Node>> lines, TArray<TSharedPtr<Node>>& node_array, TSharedPtr<Node> node1, TSharedPtr<Node> node2) {
+	for (auto cnode:node2->conn) {
+		if (node1->node != cnode->node)
+		{
+			TArray<TSharedPtr<Node>> figure_array;
+			bool is_figure = false;
+			for (auto n : node_array) {
+				if (n->node == cnode->node) {
+					is_figure = true;
+				}
+				if (is_figure) {
+					figure_array.Add(n);
+				}
+			}
+			if (is_figure) {
+				get_into_figure(lines, figure_array);
+			}
+			node_array.Add(cnode);
+			get_figure(lines, node_array, node2, cnode);
+		}
+	}
+}
+
+void AllGeometry::get_into_figure(TArray<TSharedPtr<Node>> lines, TArray<TSharedPtr<Node>>& node_array)
+{
+	//TArray<TSharedPtr<Node>> lines1 = node_array;
+	//TArray<TSharedPtr<Node>> lines2 = node_array;
+	//for (auto l : lines) {
+	//	FVector test_line_end(l->node.X, y_size, l->node.Z);
+	//	if(is_intersect_array_counter(l->node, test_line_end, node_array))
+	//}
 }
