@@ -4,99 +4,13 @@
 
 #include <list>
 #include <random>
+#include<City/AllGeometry.h>
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "HAL/Runnable.h"
 #include "ProceduralMeshComponent.h"
 #include "MainTerrain.generated.h"
-
-enum point_type { main, main_road, road, river };
-
-struct WeightedPoint
-{
-	WeightedPoint(const FVector& point_, const double weight_)
-		: point(point_), weight(weight_)
-	{
-	};
-	FVector point;
-	double weight;
-};
-
-struct Node
-{
-	Node(double X, double Y, double Z): node(FVector(X, Y, Z))
-	{
-	};
-
-	Node(): node(FVector(0, 0, 0))
-	{
-	};
-
-	Node(FVector node_): Node(node_.X, node_.Y, node_.Z)
-	{
-	};
-
-	FVector node;
-	point_type type;
-	bool used = false;
-	TArray<TSharedPtr<Node>> conn;
-
-	friend bool operator==(const Node& Lhs, const Node& RHS)
-	{
-		return Lhs.node == RHS.node
-			&& Lhs.type == RHS.type;
-	}
-
-	friend bool operator!=(const Node& Lhs, const Node& RHS)
-	{
-		return !(Lhs == RHS);
-	}
-
-	void delete_me()
-	{
-		for (auto c : conn)
-		{
-			for (int i = 0; i < c->conn.Num(); i++)
-			{
-				if (node == c->conn[i]->node)
-				{
-					c->conn.RemoveAt(i);
-					break;
-				}
-			}
-		}
-	};
-};
-
-
-static double x_size = 5000;
-static double y_size = 5000;
-
-class AllGeometry
-{
-public:
-	static TOptional<FVector> is_intersect(FVector line1_begin,
-	                                       FVector line1_end, FVector line2_begin,
-	                                       FVector line2_end, bool is_opened);
-
-
-	static TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> is_intersect_array(
-		TSharedPtr<Node> line1_begin,
-		TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
-	static int is_intersect_array_counter(TSharedPtr<Node> line1_begin, TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
-	static void create_mesh(UProceduralMeshComponent* Mesh, TArray<FVector> BaseVertices, float ExtrusionHeight);
-	static TOptional<TSharedPtr<Node>> is_intersect_array_clear(
-		TSharedPtr<Node> line1_begin, TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
-	static FVector create_segment_at_angle(const FVector& line_begin, const FVector& line_end,
-	                                       const FVector& line_beginPoint,
-	                                       double angle_in_degrees, double length);
-	static double calculate_angle(FVector A, FVector B, FVector C);
-	static void get_closed_figures(TArray<TSharedPtr<Node>> lines);
-	static void get_figure(TArray<TSharedPtr<Node>> lines, TArray<TSharedPtr<Node>>& node_array, TSharedPtr<Node> node1, TSharedPtr<Node> node2);
-	static void get_into_figure(TArray<TSharedPtr<Node>> lines, TArray<TSharedPtr<Node>>& node_array);
-};
-
 
 UCLASS()
 class CITY_API AMainTerrain : public AActor
@@ -111,6 +25,11 @@ public:
 	double x_size_in = 2000;
 	UPROPERTY(EditAnywhere)
 	;
+
+
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Procedural Mesh")
+	UProceduralMeshComponent* ProceduralMesh;
+
 	double y_size_in = 2000;
 	double av_river_length = ((x_size + y_size) / 2) / 20;
 	double min_road_length = ((x_size + y_size) / 2) / 100;
@@ -118,12 +37,14 @@ public:
 	double max_road_length = ((x_size + y_size) / 2) / 60;
 	double river_road_distance = 90; //((x_size + y_size) / 2) / 20;
 
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
 
 private:
 	void create_terrain();
@@ -138,8 +59,12 @@ private:
 	void create_usual_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
 	                               TSharedPtr<Node> end_point);
 	bool create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
+	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float ExtrusionHeight);
 	void shrink_roads();
 	void point_shift(FVector& node);
+	void get_closed_figures(TArray<TSharedPtr<Node>> lines);
+	//void get_figure(TArray<TSharedPtr<Node>>& lines, TArray<TSharedPtr<Node>>& node_array, TSharedPtr<Node> node1, TSharedPtr<Node> node2);
+	//void get_into_figure(TArray<TSharedPtr<Node>> lines, TArray<TSharedPtr<Node>>& node_array);
 	TArray<TSharedPtr<Node>> river;
 	TArray<TSharedPtr<Node>> roads;
 	TArray<TSharedPtr<Node>> road_centers;
@@ -147,4 +72,5 @@ private:
 	TArray<TSharedPtr<Node>> map_borders_array;
 	TArray<TSharedPtr<Node>> guididng_roads_array;
 	TArray<WeightedPoint> weighted_points;
+	TArray<TArray<TSharedPtr<Node>>> figures_array;
 };
