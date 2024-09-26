@@ -4,6 +4,11 @@
 
 #include "CoreMinimal.h"
 
+struct Node;
+
+// AllGeometry::AllGeometry()
+// {
+// };
 /**
  * 
  */
@@ -20,50 +25,86 @@ struct WeightedPoint
 	double weight;
 };
 
-struct Node
+struct Point
 {
-	Node(double X, double Y, double Z) : node(FVector(X, Y, Z))
+	Point(double X, double Y, double Z) : point(FVector(X, Y, Z))
 	{
 	};
 
-	Node() : node(FVector(0, 0, 0))
+	Point() : point(FVector(0, 0, 0))
 	{
 	};
 
-	Node(FVector node_) : Node(node_.X, node_.Y, node_.Z)
+	Point(FVector node_) : Point(node_.X, node_.Y, node_.Z)
 	{
 	};
 
-	FVector node;
+	FVector point;
 	point_type type;
 	bool used = false;
-	TArray<TSharedPtr<Node>> conn;
 
-	friend bool operator==(const Node& Lhs, const Node& RHS)
+
+	friend bool operator==(const Point& Lhs, const Point& RHS)
 	{
-		return Lhs.node == RHS.node
+		return Lhs.point == RHS.point
 			&& Lhs.type == RHS.type;
 	}
 
-	friend bool operator!=(const Node& Lhs, const Node& RHS)
+	friend bool operator!=(const Point& Lhs, const Point& RHS)
 	{
 		return !(Lhs == RHS);
 	}
 
-	void delete_me()
+	//void delete_me()
+	//{
+	//	for (auto c : conn)
+	//	{
+	//		for (int i = 0; i < c.node->conn.Num(); i++)
+	//		{
+	//			if (node == c.node->conn[i]->node)
+	//			{
+	//				c.node->conn.RemoveAt(i);
+	//				break;
+	//			}
+	//		}
+	//	}
+	//};
+};
+
+struct Conn
+{
+	//Conn(TSharedPtr<Node> node_) :node( node_ ) {}
+	TSharedPtr<Node> node;
+	TSharedPtr<TArray<TSharedPtr<Point>>> figure;
+};
+
+struct Node
+{
+	Node(double X, double Y, double Z) : node(MakeShared<Point>(FVector(X, Y, Z)))
 	{
-		for (auto c : conn)
-		{
-			for (int i = 0; i < c->conn.Num(); i++)
-			{
-				if (node == c->conn[i]->node)
-				{
-					c->conn.RemoveAt(i);
-					break;
-				}
-			}
-		}
 	};
+
+	Node() : node(MakeShared<Point>(FVector(0, 0, 0)))
+	{
+	};
+
+	Node(FVector node_) : node(MakeShared<Point>{node_.X, node_.Y, node_.Z})
+	{
+	};
+
+	TArray<Conn> conn;
+
+	FVector get_point() { return node->point; }
+	TSharedPtr<Point> get_node() { return node; }
+	bool is_used() { return node->used; }
+	void set_used(bool used_) { node->used = used_; }
+	point_type get_type() { return node->type; }
+	TOptional<Conn> get_next_point(TSharedPtr<Point> point);
+	TOptional<Conn> get_prev_point(TSharedPtr<Point> point);
+	void add_conn(const TSharedPtr<Node>& node_);
+
+private:
+	TSharedPtr<Point> node;
 };
 
 
@@ -75,24 +116,26 @@ class CITY_API AllGeometry
 public:
 	AllGeometry();
 	~AllGeometry();
+
 public:
-	static TOptional<FVector> is_intersect(FVector line1_begin,
-		FVector line1_end, FVector line2_begin,
-		FVector line2_end, bool is_opened);
+	static TOptional<FVector> is_intersect(const FVector& line1_begin,
+	                                       const FVector& line1_end, const FVector& line2_begin,
+	                                       const FVector& line2_end, bool is_opened);
 
 
 	static TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> is_intersect_array(
-		TSharedPtr<Node> line1_begin,
-		TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
+		const TSharedPtr<Node>& line1_begin,
+		const TSharedPtr<Node>& line1_end, const TArray<TSharedPtr<Node>>& lines, bool is_opened);
 	static TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> is_intersect_array(
 		FVector line1_begin,
-		FVector line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
+		FVector line1_end, const TArray<TSharedPtr<Node>>& lines, bool is_opened);
 	static TOptional<TSharedPtr<Node>> is_intersect_array_clear(
-		TSharedPtr<Node> line1_begin, TSharedPtr<Node> line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
+		const TSharedPtr<Node>& line1_begin, const TSharedPtr<Node>& line1_end, const TArray<TSharedPtr<Node>>& lines,
+		bool is_opened);
 	static TOptional<FVector> is_intersect_array_clear(
-		FVector line1_begin, FVector line1_end, const TArray<TSharedPtr<Node>> lines, bool is_opened);
+		const FVector& line1_begin, const FVector& line1_end, const TArray<TSharedPtr<Node>>& lines, bool is_opened);
 	static FVector create_segment_at_angle(const FVector& line_begin, const FVector& line_end,
-		const FVector& line_beginPoint,
-		double angle_in_degrees, double length);
-	static double calculate_angle(FVector A, FVector B, FVector C);
+	                                       const FVector& line_beginPoint,
+	                                       double angle_in_degrees, double length);
+	static double calculate_angle(const FVector& A, const FVector& B, const FVector& C);
 };

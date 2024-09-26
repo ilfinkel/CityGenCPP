@@ -4,7 +4,7 @@
 
 #include <list>
 #include <random>
-#include<City/AllGeometry.h>
+#include <City/AllGeometry.h>
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -45,7 +45,6 @@ protected:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-
 private:
 	void create_terrain();
 	void draw_all();
@@ -53,7 +52,6 @@ private:
 	void tick_road(TSharedPtr<Node>& node);
 	void create_guiding_rivers();
 	void create_guiding_river_segment(TSharedPtr<Node> start_point, TSharedPtr<Node> end_point);
-	// void create_guiding_river_segment(PointLine& starting_river, const TSharedPtr<RiverNode>& start_point);
 	void create_guiding_roads();
 	void create_usual_roads();
 	void create_usual_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
@@ -72,5 +70,6 @@ private:
 	TArray<TSharedPtr<Node>> map_borders_array;
 	TArray<TSharedPtr<Node>> guididng_roads_array;
 	TArray<WeightedPoint> weighted_points;
-	TArray<TArray<TSharedPtr<Node>>> figures_array;
+	TArray<TArray<TSharedPtr<FVector>>> figures_array;
+	//TArray<FigLine> fig_lines_array;
 };

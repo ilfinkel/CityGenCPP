@@ -6,48 +6,48 @@ AMainTerrain::AMainTerrain() { PrimaryActorTick.bCanEverTick = true; }
 
 void AMainTerrain::BeginPlay()
 {
+	PrimaryActorTick.bCanEverTick = true;
 	Super::BeginPlay();
 
 	create_terrain();
-	
-	get_closed_figures(roads);
+	//get_closed_figures(roads);
 	draw_all();
 }
 
 // Called every frame
-void AMainTerrain::Tick(float DeltaTime)
-{
-	// Super::Tick(DeltaTime);
-	// create_usual_roads();
-	// draw_all();
-}
+//void AMainTerrain::Tick(float DeltaTime)
+//{
+// Super::Tick(DeltaTime);
+//// create_usual_roads();
+// draw_all();
+//}
 
 
 void AMainTerrain::tick_river(TSharedPtr<Node>& node)
 {
-	point_shift(node->node);
+	point_shift(node->get_node()->point);
 
-	if ((node->node.X) < 0)
+	if ((node->get_node()->point.X) < 0)
 	{
-		node->node.X = 0;
+		node->get_node()->point.X = 0;
 	}
-	if ((node->node.Y) < 0)
+	if ((node->get_node()->point.Y) < 0)
 	{
-		node->node.Y = 0;
+		node->get_node()->point.Y = 0;
 	}
-	if ((node->node.X) > x_size)
+	if ((node->get_node()->point.X) > x_size)
 	{
-		node->node.X = x_size;
+		node->get_node()->point.X = x_size;
 	}
-	if ((node->node.Y) > y_size)
+	if ((node->get_node()->point.Y) > y_size)
 	{
-		node->node.Y = y_size;
+		node->get_node()->point.Y = y_size;
 	}
 	FVector all_point(0, 0, 0);
 	double count = 0;
 	for (int i = 0; i < node->conn.Num(); i++)
 	{
-		all_point += node->conn[i]->node;
+		all_point += node->conn[i].node->get_point();
 		count++;
 	}
 	bool is_break = false;
@@ -58,9 +58,9 @@ void AMainTerrain::tick_river(TSharedPtr<Node>& node)
 			break;
 		}
 
-		if (FVector::Distance(node->node, node->conn[i]->node) > (y_size / 15))
+		if (FVector::Distance(node->get_point(), node->conn[i].node->get_point()) > (y_size / 15))
 		{
-			node->node = all_point / count;
+			node->get_node()->point = all_point / count;
 			break;
 		}
 	}
@@ -68,12 +68,12 @@ void AMainTerrain::tick_river(TSharedPtr<Node>& node)
 
 void AMainTerrain::tick_road(TSharedPtr<Node>& node)
 {
-	if (node->used)
+	if (node->is_used())
 	{
 		return;
 	}
 	auto backup_node = node;
-	point_shift(node->node);
+	point_shift(node->get_node()->point);
 
 	if (AllGeometry::is_intersect_array(node, backup_node, river, true).IsSet())
 	{
@@ -81,28 +81,28 @@ void AMainTerrain::tick_road(TSharedPtr<Node>& node)
 		return;
 	}
 
-	if ((node->node.X) < 0)
+	if ((node->get_node()->point.X) < 0)
 	{
-		node->node.X = 0;
+		node->get_node()->point.X = 0;
 	}
-	if ((node->node.Y) < 0)
+	if ((node->get_node()->point.Y) < 0)
 	{
-		node->node.Y = 0;
+		node->get_node()->point.Y = 0;
 	}
-	if ((node->node.X) > x_size)
+	if ((node->get_node()->point.X) > x_size)
 	{
-		node->node.X = x_size;
+		node->get_node()->point.X = x_size;
 	}
-	if ((node->node.Y) > y_size)
+	if ((node->get_node()->point.Y) > y_size)
 	{
-		node->node.Y = y_size;
+		node->get_node()->point.Y = y_size;
 	}
 	if (!node->conn.IsEmpty())
 	{
 		FVector middle_point(0, 0, 0);
 		for (auto p : node->conn)
 		{
-			middle_point += p->node;
+			middle_point += p.node->get_point();
 		}
 		middle_point /= node->conn.Num();
 
@@ -112,8 +112,9 @@ void AMainTerrain::tick_road(TSharedPtr<Node>& node)
 			for (int j = 1; j < node->conn.Num(); j++)
 			{
 				if (i == j) { continue; }
-				if (FVector::Distance(node->node, node->conn[i]->node) > (y_size / 30) || (is_continuing &&
-					AllGeometry::calculate_angle(node->conn[0]->node, node->node, node->conn[1]->node) < 155.0))
+				if (FVector::Distance(node->get_point(), node->conn[i].node->get_point()) > (y_size / 30) || (
+					is_continuing && AllGeometry::calculate_angle(node->conn[0].node->get_point(), node->get_point(),
+					                                              node->conn[1].node->get_point()) < 155.0))
 				{
 					node->node = middle_point;
 					return;
@@ -228,7 +229,6 @@ void AMainTerrain::create_terrain()
 	//roads.Add(test_node_node2);
 	//roads.Add(test_node_node3);
 	////roads.Add(MakeShared<Node>(test_node_node4));
-
 }
 
 void AMainTerrain::create_guiding_rivers()
@@ -519,9 +519,9 @@ void AMainTerrain::create_usual_roads()
 			//}
 			//else
 			//{
-				forward = 3;
-				left = 9;
-				right = 11;
+			forward = 3;
+			left = 9;
+			right = 11;
 			//}
 			if (r->conn.Num() == 1)
 			{
@@ -673,7 +673,8 @@ void AMainTerrain::point_shift(FVector& node)
 	node += bias;
 }
 
-void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float ExtrusionHeight)
+void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices,
+                               float ExtrusionHeight)
 {
 	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
 	RootComponent = ProceduralMesh;
@@ -687,28 +688,28 @@ void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr
 	// Добавляем вершины плоской фигуры (нижняя плоскость)
 	for (auto Vertex : BaseVertices)
 	{
-		Vertices.Add(Vertex->node);  // Нижняя грань
+		Vertices.Add(Vertex->node); // Нижняя грань
 	}
 
 	// Добавляем экструзированные вершины (верхняя плоскость)
 	for (auto Vertex : BaseVertices)
 	{
-		Vertices.Add(Vertex->node + FVector(0, 0, ExtrusionHeight));  // Верхняя грань
+		Vertices.Add(Vertex->node + FVector(0, 0, ExtrusionHeight)); // Верхняя грань
 	}
 
 	// Шаг 2: Создаем треугольники для боковых граней
 	for (int32 i = 0; i < NumBaseVertices; i++)
 	{
-		int32 NextIndex = (i + 1) % NumBaseVertices;  // Индекс следующей вершины для замыкания
+		int32 NextIndex = (i + 1) % NumBaseVertices; // Индекс следующей вершины для замыкания
 
 		// Боковая грань (состоит из двух треугольников)
-		Triangles.Add(i);                        // Нижняя грань (текущая вершина)
-		Triangles.Add(i + NumBaseVertices);      // Верхняя грань (текущая экструзированная вершина)
-		Triangles.Add(NextIndex);                // Нижняя грань (следующая вершина)
+		Triangles.Add(i); // Нижняя грань (текущая вершина)
+		Triangles.Add(i + NumBaseVertices); // Верхняя грань (текущая экструзированная вершина)
+		Triangles.Add(NextIndex); // Нижняя грань (следующая вершина)
 
-		Triangles.Add(NextIndex);                // Нижняя грань (следующая вершина)
-		Triangles.Add(i + NumBaseVertices);      // Верхняя грань (текущая экструзированная вершина)
-		Triangles.Add(NextIndex + NumBaseVertices);  // Верхняя грань (следующая экструзированная вершина)
+		Triangles.Add(NextIndex); // Нижняя грань (следующая вершина)
+		Triangles.Add(i + NumBaseVertices); // Верхняя грань (текущая экструзированная вершина)
+		Triangles.Add(NextIndex + NumBaseVertices); // Верхняя грань (следующая экструзированная вершина)
 	}
 
 	// Шаг 3: Создаем треугольники для нижней грани
@@ -722,7 +723,7 @@ void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr
 	// Шаг 4: Создаем треугольники для верхней грани (перевёрнутые индексы, чтобы нормали смотрели вверх)
 	for (int32 i = 1; i < NumBaseVertices - 1; i++)
 	{
-		Triangles.Add(NumBaseVertices);  // Начальная точка верхней грани
+		Triangles.Add(NumBaseVertices); // Начальная точка верхней грани
 		Triangles.Add(NumBaseVertices + i + 1);
 		Triangles.Add(NumBaseVertices + i);
 	}
@@ -750,28 +751,48 @@ void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr
 void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines)
 {
 	//for (auto l : lines) {
-	//	l->used = false;
+	//	for (auto conn : l->conn) {
+	//		FVector center_point = (l->node + conn->node) / 2;
+	//		double dist = FVector::Dist(l->node, center_point);
+	//		FVector in_fig_point = AllGeometry::create_segment_at_angle(l->node, conn->node, center_point, 90, 1);
+	//		FVector in_fig_point1 = AllGeometry::create_segment_at_angle(l->node, conn->node, in_fig_point, 0, dist+10);
+	//		FVector in_fig_point2 = AllGeometry::create_segment_at_angle(l->node, conn->node, in_fig_point, 180, dist+10);
+	//		auto in_fig_point1_fin = AllGeometry::is_intersect_array(in_fig_point, in_fig_point1, roads, true);
+	//		in_fig_point1 = (in_fig_point1_fin.IsSet() ? in_fig_point1_fin.GetValue().Key : in_fig_point1);
+	//		auto in_fig_point2_fin = AllGeometry::is_intersect_array(in_fig_point, in_fig_point2, roads, true);
+	//		in_fig_point2 = (in_fig_point2_fin.IsSet() ? in_fig_point2_fin.GetValue().Key : in_fig_point2);
+	//		//if (in_fig_point1 == in_fig_point2) continue;
+	//		if (FVector::Dist(in_fig_point1, in_fig_point2) > max_road_length+5) continue;
+	//		if (FVector::Dist(in_fig_point1, in_fig_point2) < min_road_length-5) continue;
+	//		FigLine fig;
+	//		TArray<TSharedPtr<Node>> fig_figure;
+	//		fig_figure.Add(l);
+	//		fig_figure.Add(conn);
+	//		fig.figure = MakeShared<TArray<TSharedPtr<Node>>>(fig_figure);
+
+	//		fig.node_point1 = in_fig_point1;
+	//		fig.node_point2 = in_fig_point2;
+
+	//		for (auto& fig_line : fig_lines_array) {
+	//			auto intersection1 = AllGeometry::is_intersect(in_fig_point, in_fig_point1, fig_line.node_point1, fig_line.node_point2, false);
+	//			auto intersection2 = AllGeometry::is_intersect(in_fig_point, in_fig_point2, fig_line.node_point1, fig_line.node_point2, false);
+	//			if (intersection1.IsSet()) {
+	//				fig.figure = fig_line.figure;
+	//				fig_line.figure->Add(l);
+	//			}
+	//			if (intersection2.IsSet()) {
+	//				fig.figure = fig_line.figure;
+	//				fig_line.figure->Insert(conn,0);
+	//			}
+	//			if(intersection1.IsSet() || intersection2.IsSet()){ break; }
+	//			
+	//		}
+	//		fig_lines_array.Add(fig);
+	//	}
 	//}
-
-	for (auto l : lines) {
-		for (auto conn : l->conn) {
-			FVector center_point = (l->node + conn->node) / 2;
-			FVector in_fig_point = AllGeometry::create_segment_at_angle(l->node, center_point, center_point, 90, TNumericLimits<double>::Min());
-			FVector in_fig_point1 = AllGeometry::create_segment_at_angle(l->node, center_point, in_fig_point, 0, 5000);
-			FVector in_fig_point2 = AllGeometry::create_segment_at_angle(l->node, center_point, in_fig_point, 180, 5000);
-			auto in_fig_point1_fin = AllGeometry::is_intersect_array_clear(center_point, in_fig_point1, roads, true);
-			in_fig_point1 = in_fig_point1_fin.IsSet() ? in_fig_point1_fin.GetValue() : in_fig_point1;
-			auto in_fig_point2_fin = AllGeometry::is_intersect_array_clear(center_point, in_fig_point2, roads, true);
-			in_fig_point2 = in_fig_point2_fin.IsSet() ? in_fig_point1_fin.GetValue() : in_fig_point2;
-
-			FigLine fig;
-			fig.node1 = l;
-			fig.node2 = conn;
-			fig.node_point1 = in_fig_point1;
-			fig.node_point2 = in_fig_point2;
-
-		}
-	}
+	//for (auto fig : fig_lines_array) {
+	//	if(fig.figure.IsValid()){ figures_array.AddUnique(*fig.figure); }
+	//}
 }
 
 //void AMainTerrain::get_figure(TArray<TSharedPtr<Node>>& lines, TArray<TSharedPtr<Node>>& current_figure, TSharedPtr<Node> node1, TSharedPtr<Node> node2) {
@@ -921,18 +942,25 @@ void AMainTerrain::draw_all()
 		}
 	}
 
-	//for (auto fig : figures_array) {
+	//for (auto fig : fig_lines_array) {
 	//	//fig.Add(fig[0]);
-	//	for (int i = 1; i < fig.Num(); i++) {
-	//		if (fig[i-1]->type == point_type::main_road && fig[i]->type == point_type::main_road)
-	//		{
-	//			DrawDebugLine(GetWorld(), fig[i - 1]->node, fig[i]->node, FColor::Red, true, -1, 0, 9);
-	//		}
-	//		else
-	//		{
-	//			DrawDebugLine(GetWorld(), fig[i - 1]->node, fig[i]->node, FColor::Red, true, -1, 0, 5);
-	//		}
-	//	}
+	//	//for (int i = 1; i < fig.Num(); i++) {
+	//	//	//if (fig[i-1]->type == point_type::main_road && fig[i]->type == point_type::main_road)
+	//	//	//{
+	//	//	//	DrawDebugLine(GetWorld(), fig[i - 1]->node, fig[i]->node, FColor::Red, true, -1, 0, 9);
+	//	//	//}
+	//	//	//else
+	//	//	//{
+	//	//	fig[i - 1]->node.Z = 20;
+	//	//	fig[i]->node.Z = 20;
+	//	//		DrawDebugLine(GetWorld(), fig[i - 1]->node, fig[i]->node, FColor::Red, true, -1, 0, 5);
+	//	//	//}
+	//	//}
+	//	FVector p1 = fig.node_point1;
+	//	p1.Z = 20;
+	//	FVector p2 = fig.node_point2;
+	//	p2.Z = 20;
+	//	DrawDebugLine(GetWorld(), p1, p2, FColor::Red, true, -1, 0, 5); ;
 	//}
 }
 
@@ -1099,4 +1127,3 @@ void AMainTerrain::draw_all()
 //	double AngleDegrees = FMath::RadiansToDegrees(AngleRadians);
 //	return AngleDegrees;
 //}
-
