@@ -1,15 +1,14 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
+#include <City/AllGeometry.h>
 #include <list>
 #include <random>
-#include <City/AllGeometry.h>
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "HAL/Runnable.h"
 #include "ProceduralMeshComponent.h"
+
 #include "MainTerrain.generated.h"
 
 UCLASS()
@@ -20,14 +19,12 @@ class CITY_API AMainTerrain : public AActor
 public:
 	// Sets default values for this actor's properties
 	AMainTerrain();
-	UPROPERTY(EditAnywhere)
-	;
+	UPROPERTY(EditAnywhere);
 	double x_size_in = 2000;
-	UPROPERTY(EditAnywhere)
-	;
+	UPROPERTY(EditAnywhere);
 
 
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Procedural Mesh")
+	// UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Procedural Mesh")
 	UProceduralMeshComponent* ProceduralMesh;
 
 	double y_size_in = 2000;
@@ -46,6 +43,7 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 
 private:
+	void add_conn(TSharedPtr<Node> node1, TSharedPtr<Node> node2);
 	void create_terrain();
 	void draw_all();
 	void tick_river(TSharedPtr<Node>& node);
@@ -55,14 +53,12 @@ private:
 	void create_guiding_roads();
 	void create_usual_roads();
 	void create_usual_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
-	                               TSharedPtr<Node> end_point);
+								   TSharedPtr<Node> end_point);
 	bool create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float ExtrusionHeight);
 	void shrink_roads();
-	void point_shift(FVector& node);
+	void point_shift(FVector& point);
 	void get_closed_figures(TArray<TSharedPtr<Node>> lines);
-	//void get_figure(TArray<TSharedPtr<Node>>& lines, TArray<TSharedPtr<Node>>& node_array, TSharedPtr<Node> node1, TSharedPtr<Node> node2);
-	//void get_into_figure(TArray<TSharedPtr<Node>> lines, TArray<TSharedPtr<Node>>& node_array);
 	TArray<TSharedPtr<Node>> river;
 	TArray<TSharedPtr<Node>> roads;
 	TArray<TSharedPtr<Node>> road_centers;
@@ -70,6 +66,5 @@ private:
 	TArray<TSharedPtr<Node>> map_borders_array;
 	TArray<TSharedPtr<Node>> guididng_roads_array;
 	TArray<WeightedPoint> weighted_points;
-	TArray<TArray<TSharedPtr<FVector>>> figures_array;
-	//TArray<FigLine> fig_lines_array;
+	TArray<TSharedPtr<TArray<TSharedPtr<Point>>>> figures_array;
 };
