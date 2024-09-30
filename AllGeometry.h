@@ -14,6 +14,15 @@ enum point_type
 	road,
 	river
 };
+enum block_type
+{
+	royal,
+	dock,
+	residential,
+	luxury,
+	slums,
+	unknown
+};
 
 struct WeightedPoint
 {
@@ -33,6 +42,7 @@ struct Point
 	FVector point;
 	point_type type;
 	bool used = false;
+	TArray<block_type> blocks_nearby;
 
 
 	// friend bool operator==(const Point& Lhs, const Point& RHS)
@@ -108,9 +118,23 @@ protected:
 	TSharedPtr<Point> node;
 };
 
+struct Block
+{
+	Block(TArray<TSharedPtr<Point>> figure_);
+	TArray<TSharedPtr<Point>> figure;
+	float area;
+	int main_roads;
+	bool is_river_in;
+	void set_type(block_type type_);
+	block_type get_type() { return type; };
+	bool is_point_in_figure(TSharedPtr<Point> point_);
 
-static double x_size = 5000;
-static double y_size = 5000;
+private:
+	block_type type;
+};
+
+static double x_size = 4000;
+static double y_size = 4000;
 
 class CITY_API AllGeometry
 {
@@ -136,4 +160,6 @@ public:
 	static FVector create_segment_at_angle(const FVector& line_begin, const FVector& line_end,
 										   const FVector& line_beginPoint, double angle_in_degrees, double length);
 	static int calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork = false);
+	static float get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices);
+	static void change_size(const TArray<TSharedPtr<Point>>& Vertices, float size_delta);
 };

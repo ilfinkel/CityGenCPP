@@ -11,6 +11,7 @@ void AMainTerrain::BeginPlay()
 
 	create_terrain();
 	get_closed_figures(roads);
+	process_blocks(figures_array);
 	draw_all();
 }
 
@@ -36,24 +37,33 @@ void AMainTerrain::add_conn(TSharedPtr<Node> node1, TSharedPtr<Node> node2)
 
 void AMainTerrain::tick_river(TSharedPtr<Node>& node)
 {
-	point_shift(node->get_node()->point);
+	auto backup_node = node;
 
-	if ((node->get_point().X) < 0)
+	point_shift(node->get_node()->point);
+	auto intersec = AllGeometry::is_intersect_array(node, backup_node, map_borders_array, true);
+	if (intersec.IsSet())
 	{
-		node->set_point_X(0);
+		node->set_point(intersec->Key);
 	}
-	if ((node->get_point().Y) < 0)
-	{
-		node->set_point_Y(0);
-	}
-	if ((node->get_point().X) > x_size)
-	{
-		node->set_point_X(x_size);
-	}
-	if ((node->get_point().Y) > y_size)
-	{
-		node->set_point_Y(y_size);
-	}
+
+	// if ((node->get_point().X) < 0)
+	// {
+	// 	node->set_point_X(0);
+	// }
+	// if ((node->get_point().Y) < 0)
+	// {
+	// 	node->set_point_Y(0);
+	// }
+	// if ((node->get_point().X) > x_size)
+	// {
+	// 	node->set_point_X(x_size);
+	// }
+	// if ((node->get_point().Y) > y_size)
+	// {
+	// 	node->set_point_Y(y_size);
+	// }
+
+
 	FVector all_point(0, 0, 0);
 	double count = 0;
 	for (int i = 0; i < node->conn.Num(); i++)
@@ -91,6 +101,7 @@ void AMainTerrain::tick_road(TSharedPtr<Node>& node)
 		node = backup_node;
 		return;
 	}
+
 
 	if ((node->get_point().X) < 0)
 	{
@@ -268,7 +279,7 @@ void AMainTerrain::create_guiding_river_segment(TSharedPtr<Node> start_point, TS
 	if (intersect_border.IsSet())
 	{
 		is_ending = true;
-		end_point->get_point() = intersect_border->Key;
+		end_point->set_point(intersect_border->Key);
 	}
 	else if (intersect_river.IsSet())
 	{
@@ -286,6 +297,7 @@ void AMainTerrain::create_guiding_river_segment(TSharedPtr<Node> start_point, TS
 		{
 			node_ptr->set_point(start_point->get_point() +
 								((end_point->get_point() - start_point->get_point()) / dist_times * i));
+			node_ptr->set_type(point_type::river);
 			add_conn(node_ptr, old_node);
 		}
 		else
@@ -532,6 +544,7 @@ void AMainTerrain::create_usual_roads()
 																	  r->get_point(), angle_in_degrees, length);
 
 					TSharedPtr<Node> new_node = MakeShared<Node>(line1);
+					new_node->set_type(point_type::road);
 					bool is_possible = false;
 					for (auto rc : road_centers)
 					{
@@ -564,6 +577,7 @@ void AMainTerrain::create_usual_roads()
 					auto line2 = AllGeometry::create_segment_at_angle(r->conn[0]->node->get_point(), r->get_point(),
 																	  r->get_point(), angle_in_degrees, length);
 					TSharedPtr<Node> new_node2 = MakeShared<Node>(line2);
+					new_node2->set_type(point_type::road);
 					bool is_possible = false;
 					for (auto rc : road_centers)
 					{
@@ -593,6 +607,7 @@ void AMainTerrain::create_usual_roads()
 					auto line3 = AllGeometry::create_segment_at_angle(r->conn[0]->node->get_point(), r->get_point(),
 																	  r->get_point(), angle_in_degrees, length);
 					TSharedPtr<Node> new_node3 = MakeShared<Node>(line3);
+					new_node3->set_type(point_type::road);
 					bool is_possible = false;
 					for (auto rc : road_centers)
 					{
@@ -628,6 +643,11 @@ void AMainTerrain::create_usual_roads()
 void AMainTerrain::create_usual_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
 											 TSharedPtr<Node> end_point)
 {
+	// auto intersec = AllGeometry::is_intersect_array(start_point, end_point, map_borders_array, true);
+	// if (intersec.IsSet())
+	// {
+	// 	end_point->set_point(intersec->Key);
+	// }
 	if ((end_point->get_point().X) < 0)
 	{
 		end_point->set_point_X(0);
@@ -825,10 +845,76 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines)
 				{
 					conn->figure = figure_array;
 				}
-				figures_array.Add(figure_array);
+				figures_array.Add(Block(*figure_array));
 			}
 		}
 	}
+}
+void AMainTerrain::process_blocks(TArray<Block>& blocks)
+{
+	// int biggest_block_counter = 0;
+	// float biggest_area = 0;
+	// float average_area = 0;
+	// for (int i = blocks.Num() - 1; i >= 0; i--)
+	// {
+	// 	auto local_area = AllGeometry::get_poygon_area(blocks[i].figure);
+	//
+	// 	// average_area += local_area;
+	// 	// if (local_area > biggest_area)
+	// 	// {
+	// 	// 	biggest_area = local_area;
+	// 	// 	biggest_block_counter = i;
+	// 	// }
+	// 	// if (local_area < min_road_length * min_road_length / 3 * 2)
+	// 	// {
+	// 	// 	blocks.RemoveAt(i);
+	// 	// }
+	// }
+	blocks.Sort([this](Block Item1, Block Item2) { return Item1.area > Item2.area; });
+	blocks.RemoveAt(0);
+	bool royal_found = false;
+	for (auto& b : blocks)
+	{
+		for (auto& p : b.figure)
+		{
+			if (FVector::Dist(p->point, center) < (x_size + y_size) / 4)
+			{
+				b.set_type(block_type::royal);
+				royal_found = true;
+				break;
+			}
+		}
+		if (royal_found)
+		{
+			break;
+		}
+	}
+
+	bool dock_found = false;
+	for (auto& b : blocks)
+	{
+		if (b.get_type() != block_type::unknown)
+		{
+			continue;
+		}
+		for (auto r : river)
+		{
+			if (b.is_point_in_figure(r->get_node()))
+			{
+				b.set_type(block_type::dock);
+				dock_found = true;
+				break;
+			}
+		}
+		if (dock_found)
+		{
+			break;
+		}
+	}
+
+	// average_area -= biggest_area;
+	// roads.RemoveAt(biggest_block_counter);
+	// average_area /= (blocks.Num() - 1);
 }
 
 void AMainTerrain::draw_all()
@@ -850,28 +936,36 @@ void AMainTerrain::draw_all()
 			DrawDebugLine(GetWorld(), rconn->node->get_point(), r->get_point(), FColor::Blue, true, -1, 0, 10);
 		}
 	}
-	for (auto r : roads)
-	{
-		for (auto rconn : r->conn)
-		{
-			if (r->get_type() == point_type::main_road && rconn->node->get_type() == point_type::main_road)
-			{
-				DrawDebugLine(GetWorld(), rconn->node->get_point(), r->get_point(), FColor::Green, true, -1, 0, 9);
-			}
-			else
-			{
-				DrawDebugLine(GetWorld(), rconn->node->get_point(), r->get_point(), FColor::Green, true, -1, 0, 5);
-			}
-		}
-	}
+	// for (auto r : roads)
+	// {
+	// 	for (auto rconn : r->conn)
+	// 	{
+	// 		if (r->get_type() == point_type::main_road && rconn->node->get_type() == point_type::main_road)
+	// 		{
+	// 			DrawDebugLine(GetWorld(), rconn->node->get_point(), r->get_point(), FColor::Green, true, -1, 0, 9);
+	// 		}
+	// 		else
+	// 		{
+	// 			DrawDebugLine(GetWorld(), rconn->node->get_point(), r->get_point(), FColor::Green, true, -1, 0, 4);
+	// 		}
+	// 	}
+	// }
 	for (auto r : figures_array)
 	{
-		auto figure_we_got = *r;
-		int height = (rand() % 4 + 1) * 10;
+		FColor color;
+		auto figure_we_got = r.figure;
 		for (int i = 1; i < figure_we_got.Num(); i++)
 		{
-			DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, FColor::Red, true, -1, 0,
-						  5);
+			if (r.get_type() == block_type::dock)
+			{
+				color = FColor::Blue;
+				DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, color, true, -1, 0, 1);
+			}
+			if (r.get_type() == block_type::royal)
+			{
+				color = FColor::Red;
+				DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, color, true, -1, 0, 1);
+			}
 		}
 	}
 }

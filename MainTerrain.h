@@ -19,20 +19,15 @@ class CITY_API AMainTerrain : public AActor
 public:
 	// Sets default values for this actor's properties
 	AMainTerrain();
-	UPROPERTY(EditAnywhere);
-	double x_size_in = 2000;
-	UPROPERTY(EditAnywhere);
-
 
 	// UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Procedural Mesh")
-	UProceduralMeshComponent* ProceduralMesh;
-
-	double y_size_in = 2000;
+	// UProceduralMeshComponent* ProceduralMesh;
+	FVector center = FVector(x_size / 2, y_size / 2, 0);
 	double av_river_length = ((x_size + y_size) / 2) / 20;
-	double min_road_length = ((x_size + y_size) / 2) / 100;
-	double av_road_length = ((x_size + y_size) / 2) / 80;
-	double max_road_length = ((x_size + y_size) / 2) / 60;
-	double river_road_distance = 90; //((x_size + y_size) / 2) / 20;
+	double min_road_length = 45;
+	double av_road_length = 70;
+	double max_road_length = 90;
+	double river_road_distance = 60; //((x_size + y_size) / 2) / 20;
 
 
 protected:
@@ -45,7 +40,6 @@ protected:
 private:
 	void add_conn(TSharedPtr<Node> node1, TSharedPtr<Node> node2);
 	void create_terrain();
-	void draw_all();
 	void tick_river(TSharedPtr<Node>& node);
 	void tick_road(TSharedPtr<Node>& node);
 	void create_guiding_rivers();
@@ -59,6 +53,8 @@ private:
 	void shrink_roads();
 	void point_shift(FVector& point);
 	void get_closed_figures(TArray<TSharedPtr<Node>> lines);
+	void process_blocks(TArray<Block>& blocks);
+	void draw_all();
 	TArray<TSharedPtr<Node>> river;
 	TArray<TSharedPtr<Node>> roads;
 	TArray<TSharedPtr<Node>> road_centers;
@@ -66,5 +62,5 @@ private:
 	TArray<TSharedPtr<Node>> map_borders_array;
 	TArray<TSharedPtr<Node>> guididng_roads_array;
 	TArray<WeightedPoint> weighted_points;
-	TArray<TSharedPtr<TArray<TSharedPtr<Point>>>> figures_array;
+	TArray<Block> figures_array;
 };

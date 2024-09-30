@@ -3,6 +3,14 @@
 
 #include "AllGeometry.h"
 
+Block::Block(TArray<TSharedPtr<Point>> figure_)
+{
+	figure = figure_;
+	area = AllGeometry::get_poygon_area(figure);
+	type = block_type::unknown;
+	// AllGeometry::change_size(figure, 0.7f);
+}
+
 TOptional<TSharedPtr<Conn>> Node::get_next_point(TSharedPtr<Point> point)
 {
 	for (auto c : conn)
@@ -26,6 +34,30 @@ TOptional<TSharedPtr<Conn>> Node::get_prev_point(TSharedPtr<Point> point)
 }
 
 void Node::add_connection(const TSharedPtr<Node>& node_) { conn.Add(MakeShared<Conn>(Conn(node_))); }
+
+
+void Block::set_type(block_type type_)
+{
+	type = type_;
+	for (int i = 0; i < figure.Num() - 2; i++)
+	{
+		figure[i]->blocks_nearby.Add(type_);
+	}
+}
+bool Block::is_point_in_figure(TSharedPtr<Point> point_)
+{
+	FVector point = point_->point;
+	FVector point2 = point_->point;
+	point2.Y = y_size;
+	for (int i = 1; i < figure.Num(); i++)
+	{
+		if (AllGeometry::is_intersect(point, point2, figure[i - 1]->point, figure[i]->point, true).IsSet())
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
 TOptional<FVector> AllGeometry::is_intersect(const FVector& line1_begin, const FVector& line1_end,
 											 const FVector& line2_begin, const FVector& line2_end, bool is_opened)
@@ -195,4 +227,67 @@ int AllGeometry::calculate_angle(const FVector& A, const FVector& B, const FVect
 	double AngleDegrees = FMath::RadiansToDegrees(AngleRadians);
 
 	return AngleDegrees;
+}
+
+float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
+{
+	int32 NumVertices = Vertices.Num();
+
+	bool IsClosed = Vertices[0]->point == Vertices[NumVertices - 1]->point;
+	if (IsClosed)
+	{
+		NumVertices--;
+	}
+	if (NumVertices < 3)
+	{
+		return 0.0f;
+	}
+
+	float Area = 0.0f;
+
+	for (int32 i = 1; i < NumVertices; ++i)
+	{
+		const FVector& CurrentVertex = Vertices[i - 1]->point;
+		const FVector& NextVertex = Vertices[(i) % NumVertices]->point;
+		Area += FMath::Abs((NextVertex.X - CurrentVertex.X) * (NextVertex.Y - CurrentVertex.Y));
+	}
+
+	Area = Area / 2.0f;
+
+	return Area;
+}
+
+
+void AllGeometry::change_size(const TArray<TSharedPtr<Point>>& Vertices, float size_delta)
+{
+	int32 NumVertices = Vertices.Num();
+
+	bool IsClosed = Vertices[0]->point == Vertices[NumVertices - 1]->point;
+	if (IsClosed)
+	{
+		NumVertices--;
+	}
+	if (NumVertices < 3 || size_delta <= 0.0f)
+	{
+		return;
+	}
+
+	// Шаг 1: Найти центр масс (центроид) многоугольника
+	FVector Centroid(0.0f, 0.0f, 0.0f);
+	for (int32 i = 0; i < NumVertices; ++i)
+	{
+		Centroid += Vertices[i]->point;
+	}
+	Centroid /= static_cast<float>(NumVertices);
+
+	// Шаг 2: Переместить каждую вершину по направлению к центру
+	TArray<FVector> ScaledVertices;
+	for (int32 i = 0; i < NumVertices; ++i)
+	{
+		// Смещаем вершину к центроиду с применением ScaleFactor
+		FVector ScaledVertex = Centroid + (Vertices[i]->point - Centroid) * size_delta;
+		Vertices[i]->point = ScaledVertex;
+	}
+
+	// return ScaledVertices;
 }
