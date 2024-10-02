@@ -26,7 +26,7 @@ public:
 	double av_river_length = ((x_size + y_size) / 2) / 20;
 	double min_road_length = 45;
 	double av_road_length = 70;
-	double max_road_length = 90;
+	double max_road_length = 95;
 	double river_road_distance = 60; //((x_size + y_size) / 2) / 20;
 
 
@@ -39,6 +39,8 @@ protected:
 
 private:
 	void add_conn(TSharedPtr<Node> node1, TSharedPtr<Node> node2);
+	TSharedPtr<Node> insert_conn(TSharedPtr<Node> node1_to_insert, TSharedPtr<Node> node2_to_insert,
+								 FVector node3_point);
 	void create_terrain();
 	void tick_river(TSharedPtr<Node>& node);
 	void tick_road(TSharedPtr<Node>& node);
@@ -46,12 +48,14 @@ private:
 	void create_guiding_river_segment(TSharedPtr<Node> start_point, TSharedPtr<Node> end_point);
 	void create_guiding_roads();
 	void create_usual_roads();
-	void create_usual_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
-								   TSharedPtr<Node> end_point);
+	void fix_broken_roads();
+	TOptional<TSharedPtr<Node>> create_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
+													TSharedPtr<Node> end_point, bool to_exect_point, point_type type);
 	bool create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float ExtrusionHeight);
 	void shrink_roads();
 	void point_shift(FVector& point);
+	void smooth_road_corners();
 	void get_closed_figures(TArray<TSharedPtr<Node>> lines);
 	void process_blocks(TArray<Block>& blocks);
 	void draw_all();

@@ -99,20 +99,7 @@ struct Node
 	TOptional<TSharedPtr<Conn>> get_next_point(TSharedPtr<Point> point);
 	TOptional<TSharedPtr<Conn>> get_prev_point(TSharedPtr<Point> point);
 	void add_connection(const TSharedPtr<Node>& node_);
-	void delete_me()
-	{
-		for (auto c : conn)
-		{
-			for (int i = 0; i < c->node->conn.Num(); i++)
-			{
-				if (node->point == c->node->conn[i]->node->get_point())
-				{
-					c->node->conn.RemoveAt(i);
-					break;
-				}
-			}
-		}
-	};
+	void delete_me();
 
 protected:
 	TSharedPtr<Point> node;
@@ -159,7 +146,7 @@ public:
 													   const TArray<TSharedPtr<Node>>& lines, bool is_opened);
 	static FVector create_segment_at_angle(const FVector& line_begin, const FVector& line_end,
 										   const FVector& line_beginPoint, double angle_in_degrees, double length);
-	static int calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork = false);
+	static double calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork = false);
 	static float get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices);
 	static void change_size(const TArray<TSharedPtr<Point>>& Vertices, float size_delta);
 };

@@ -34,6 +34,20 @@ TOptional<TSharedPtr<Conn>> Node::get_prev_point(TSharedPtr<Point> point)
 }
 
 void Node::add_connection(const TSharedPtr<Node>& node_) { conn.Add(MakeShared<Conn>(Conn(node_))); }
+void Node::delete_me()
+{
+	for (auto c : conn)
+	{
+		for (int i = 0; i < c->node->conn.Num(); i++)
+		{
+			if (node->point == c->node->conn[i]->node->get_point())
+			{
+				c->node->conn.RemoveAt(i);
+				break;
+			}
+		}
+	}
+}
 
 
 void Block::set_type(block_type type_)
@@ -207,7 +221,7 @@ FVector AllGeometry::create_segment_at_angle(const FVector& line_begin, const FV
 	return line_endPoint;
 }
 
-int AllGeometry::calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork)
+double AllGeometry::calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork)
 {
 	FVector BA = A - B;
 	FVector BC = C - B;
@@ -232,14 +246,10 @@ int AllGeometry::calculate_angle(const FVector& A, const FVector& B, const FVect
 float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
 {
 	int32 NumVertices = Vertices.Num();
-
-	bool IsClosed = Vertices[0]->point == Vertices[NumVertices - 1]->point;
-	if (IsClosed)
-	{
-		NumVertices--;
-	}
+	NumVertices--;
 	if (NumVertices < 3)
 	{
+		// Многоугольник должен иметь минимум 3 вершины
 		return 0.0f;
 	}
 
@@ -248,11 +258,14 @@ float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
 	for (int32 i = 1; i < NumVertices; ++i)
 	{
 		const FVector& CurrentVertex = Vertices[i - 1]->point;
-		const FVector& NextVertex = Vertices[(i) % NumVertices]->point;
-		Area += FMath::Abs((NextVertex.X - CurrentVertex.X) * (NextVertex.Y - CurrentVertex.Y));
+		const FVector& NextVertex = Vertices[(i) % NumVertices]->point; // Закольцовываем
+
+		// Площадь через векторное произведение
+		Area += FMath::Abs((CurrentVertex.X + NextVertex.X) * (NextVertex.Y - CurrentVertex.Y)) / 2;
 	}
 
-	Area = Area / 2.0f;
+	// Проекция площади на плоскость, нормаль к которой перпендикулярна нормали полигона
+	Area = Area / 2;
 
 	return Area;
 }
