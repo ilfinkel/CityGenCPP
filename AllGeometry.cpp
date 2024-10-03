@@ -5,7 +5,38 @@
 
 Block::Block(TArray<TSharedPtr<Point>> figure_)
 {
+	// figure = figure_;
+	bool is_found;
+	if (figure_.Num() > 3)
+	{
+		do
+		{
+			int beg_del = 0;
+			int end_del = 0;
+			is_found = false;
+			for (int i = 0; i < figure_.Num(); i++)
+			{
+				for (int j = i + 2; j < figure_.Num(); j++)
+				{
+					if (figure_[i] == figure_[j] && figure_[i + 1] == figure_[j - 1])
+					{
+						beg_del = i;
+						end_del = j;
+						is_found = true;
+						break;
+					}
+				}
+				if (is_found)
+				{
+					break;
+				}
+			}
+			figure_.RemoveAt(beg_del, end_del - beg_del);
+		}
+		while (is_found);
+	}
 	figure = figure_;
+
 	area = AllGeometry::get_poygon_area(figure);
 	type = block_type::unknown;
 	// AllGeometry::change_size(figure, 0.7f);
@@ -63,12 +94,17 @@ bool Block::is_point_in_figure(TSharedPtr<Point> point_)
 	FVector point = point_->point;
 	FVector point2 = point_->point;
 	point2.Y = y_size;
+	int times_to_hit = 0;
 	for (int i = 1; i < figure.Num(); i++)
 	{
 		if (AllGeometry::is_intersect(point, point2, figure[i - 1]->point, figure[i]->point, true).IsSet())
 		{
-			return true;
+			times_to_hit++;
 		}
+	}
+	if (times_to_hit % 2 == 1)
+	{
+		return true;
 	}
 	return false;
 }

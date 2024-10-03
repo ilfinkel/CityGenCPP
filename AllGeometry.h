@@ -109,7 +109,7 @@ struct Block
 {
 	Block(TArray<TSharedPtr<Point>> figure_);
 	TArray<TSharedPtr<Point>> figure;
-	float area;
+	double area;
 	int main_roads;
 	bool is_river_in;
 	void set_type(block_type type_);

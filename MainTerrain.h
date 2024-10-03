@@ -48,14 +48,12 @@ private:
 	void create_guiding_river_segment(TSharedPtr<Node> start_point, TSharedPtr<Node> end_point);
 	void create_guiding_roads();
 	void create_usual_roads();
-	void fix_broken_roads();
 	TOptional<TSharedPtr<Node>> create_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
 													TSharedPtr<Node> end_point, bool to_exect_point, point_type type);
 	bool create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float ExtrusionHeight);
 	void shrink_roads();
 	void point_shift(FVector& point);
-	void smooth_road_corners();
 	void get_closed_figures(TArray<TSharedPtr<Node>> lines);
 	void process_blocks(TArray<Block>& blocks);
 	void draw_all();

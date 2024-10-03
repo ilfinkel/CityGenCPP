@@ -9,6 +9,7 @@ void AMainTerrain::BeginPlay()
 	PrimaryActorTick.bCanEverTick = true;
 	Super::BeginPlay();
 
+
 	create_terrain();
 	get_closed_figures(roads);
 	process_blocks(figures_array);
@@ -69,24 +70,6 @@ void AMainTerrain::tick_river(TSharedPtr<Node>& node)
 		node->set_point(intersec->Key);
 	}
 
-	// if ((node->get_point().X) < 0)
-	// {
-	// 	node->set_point_X(0);
-	// }
-	// if ((node->get_point().Y) < 0)
-	// {
-	// 	node->set_point_Y(0);
-	// }
-	// if ((node->get_point().X) > x_size)
-	// {
-	// 	node->set_point_X(x_size);
-	// }
-	// if ((node->get_point().Y) > y_size)
-	// {
-	// 	node->set_point_Y(y_size);
-	// }
-
-
 	FVector all_point(0, 0, 0);
 	double count = 0;
 	for (int i = 0; i < node->conn.Num(); i++)
@@ -117,69 +100,37 @@ void AMainTerrain::tick_road(TSharedPtr<Node>& node)
 		return;
 	}
 	auto backup_node = node;
-	point_shift(node->get_node()->point);
+	FVector point = node->get_point();
+	FVector backup_point = node->get_point();
+	point_shift(point);
 
-	if (AllGeometry::is_intersect_array(node, backup_node, river, true).IsSet())
+	for (auto conn : node->conn)
 	{
-		node = backup_node;
-		return;
-	}
-	if (AllGeometry::is_intersect_array(node, backup_node, roads, true).IsSet())
-	{
-		node = backup_node;
-		return;
-	}
-
-	if ((node->get_point().X) < 0)
-	{
-		node->set_point_X(0);
-	}
-	if ((node->get_point().Y) < 0)
-	{
-		node->set_point_Y(0);
-	}
-	if ((node->get_point().X) > x_size)
-	{
-		node->set_point_X(x_size);
-	}
-	if ((node->get_point().Y) > y_size)
-	{
-		node->set_point_Y(y_size);
-	}
-	if (node->conn.Num() >= 2)
-	{
-		FVector middle_point(0, 0, 0);
-		for (auto p : node->conn)
+		if (FVector::Distance(conn->node->get_point(), point) > max_road_length)
 		{
-			middle_point += p->node->get_point();
+			return;
 		}
-		middle_point /= node->conn.Num();
+	}
 
-		bool is_continuing = (node->conn.Num() == 2);
-		for (int i = 0; i < node->conn.Num(); i++)
-		{
-			auto angle = AllGeometry::calculate_angle(node->conn[0]->node->get_point(), node->get_point(),
-													  node->conn[1]->node->get_point(), false);
-			if (FVector::Distance(node->get_point(), node->conn[i]->node->get_point()) > max_road_length ||
-				(is_continuing && (angle < 155.0)))
-			{
-				auto local_backup_node = node;
-				node->set_point(middle_point);
-				if (AllGeometry::is_intersect_array(node->get_point(), local_backup_node->get_point(), roads, true)
-						.IsSet() ||
-					AllGeometry::is_intersect_array(node->get_point(), local_backup_node->get_point(), river, true)
-						.IsSet())
-				{
-					node = local_backup_node;
-				}
-				return;
-			}
-		}
+	if (!AllGeometry::is_intersect_array(backup_point, point, river, true).IsSet() &&
+		!AllGeometry::is_intersect_array(backup_point, point, map_borders_array, true).IsSet() &&
+		!AllGeometry::is_intersect_array(backup_point, point, roads, false).IsSet())
+	{
+		node->set_point(point);
 	}
 }
 
 void AMainTerrain::create_terrain()
 {
+	river.Empty();
+	roads.Empty();
+	road_centers.Empty();
+	map_points_array.Empty();
+	map_borders_array.Empty();
+	guididng_roads_array.Empty();
+	weighted_points.Empty();
+	figures_array.Empty();
+
 	auto map_node1 = MakeShared<Node>(0, 0, 0);
 	auto map_node2 = MakeShared<Node>(0, y_size, 0);
 	auto map_node3 = MakeShared<Node>(x_size, y_size, 0);
@@ -224,18 +175,7 @@ void AMainTerrain::create_terrain()
 	}
 
 	create_guiding_roads();
-	int bbb = 0;
-	for (auto r : roads)
-	{
-		for (auto c : r->conn)
-		{
-			auto aaa = AllGeometry::is_intersect_array(r->get_point(), c->node->get_point(), roads, false);
-			if (aaa.IsSet())
-			{
-				bbb++;
-			}
-		}
-	}
+
 	for (int iter = 0; iter < 100; iter++)
 	{
 		for (auto& r : roads)
@@ -253,18 +193,7 @@ void AMainTerrain::create_terrain()
 			tick_road(r);
 		}
 	}
-	bbb = 0;
-	for (auto r : roads)
-	{
-		for (auto c : r->conn)
-		{
-			auto aaa = AllGeometry::is_intersect_array(r->get_point(), c->node->get_point(), roads, false);
-			if (aaa.IsSet())
-			{
-				bbb++;
-			}
-		}
-	}
+
 	int old_nodes = 0;
 	while (roads.Num() != old_nodes)
 	{
@@ -292,39 +221,7 @@ void AMainTerrain::create_terrain()
 			tick_road(r);
 		}
 	}
-	bbb = 0;
-	for (auto r : roads)
-	{
-		for (auto c : r->conn)
-		{
-			auto aaa = AllGeometry::is_intersect_array(r->get_point(), c->node->get_point(), roads, false);
-			if (aaa.IsSet())
-			{
-				bbb++;
-			}
-		}
-	}
-	// shrink_roads();
-	// smooth_road_corners();
-	while (roads.Num() != old_nodes)
-	{
-		old_nodes = roads.Num();
-		fix_broken_roads();
-		shrink_roads();
-		// smooth_road_corners();
-	}
-	bbb = 0;
-	for (auto r : roads)
-	{
-		for (auto c : r->conn)
-		{
-			auto aaa = AllGeometry::is_intersect_array(r->get_point(), c->node->get_point(), roads, false);
-			if (aaa.IsSet())
-			{
-				bbb++;
-			}
-		}
-	}
+	shrink_roads();
 
 	// auto test_node_node1 = MakeShared<Node>(300, 300, 0);
 	// auto test_node_node2 = MakeShared<Node>(300, y_size - 300, 0);
@@ -498,18 +395,29 @@ void AMainTerrain::create_guiding_roads()
 	// placing bridges
 	for (auto r : river)
 	{
-		if (FVector::Dist(r->get_point(), FVector(x_size / 2, y_size / 2, 0)) < (y_size / 3) && rand() % 8 >= 6 &&
-			r->conn.Num() == 2)
+		if (FVector::Distance(r->get_point(), center) < (y_size / 3) && rand() % 8 >= 2 && r->conn.Num() == 2)
 		{
-			auto bridge1 = MakeShared<Node>(
-				AllGeometry::create_segment_at_angle(r->conn[0]->node->get_point(), r->get_point(), r->get_point(), 90,
-													 FVector::Dist(r->conn[0]->node->get_point(), r->get_point()) / 2));
-			auto bridge2 = MakeShared<Node>(
-				AllGeometry::create_segment_at_angle(r->conn[0]->node->get_point(), r->get_point(), r->get_point(), -90,
-													 FVector::Dist(r->conn[0]->node->get_point(), r->get_point()) / 2));
-			add_conn(bridge1, bridge2);
-			roads.Add(bridge1);
-			roads.Add(bridge2);
+			bool too_near = false;
+			for (auto road : roads)
+			{
+				if (FVector::Distance(road->get_point(), r->get_point()) < y_size / 15)
+				{
+					too_near = true;
+					break;
+				}
+			}
+			if (!too_near)
+			{
+				auto bridge1 = MakeShared<Node>(AllGeometry::create_segment_at_angle(
+					r->conn[0]->node->get_point(), r->get_point(), r->get_point(), 90,
+					FVector::Distance(r->conn[0]->node->get_point(), r->get_point()) / 2));
+				auto bridge2 = MakeShared<Node>(AllGeometry::create_segment_at_angle(
+					r->conn[0]->node->get_point(), r->get_point(), r->get_point(), -90,
+					FVector::Distance(r->conn[0]->node->get_point(), r->get_point()) / 2));
+				add_conn(bridge1, bridge2);
+				roads.Add(bridge1);
+				roads.Add(bridge2);
+			}
 		}
 	}
 	for (auto r : roads)
@@ -527,27 +435,27 @@ void AMainTerrain::create_guiding_roads()
 		r->set_type(point_type::main_road);
 	}
 
-	for (int i = roads.Num() - 2; i >= 0; i--)
+	for (int i = 0; i < road_centers.Num() - 1; i++)
 	{
-		TArray<TSharedPtr<Node>> local_road = TArray<TSharedPtr<Node>>(&roads.GetData()[0], i);
+		auto local_road = road_centers;
 
 		local_road.Sort(
 			[i, this](TSharedPtr<Node> Item1, TSharedPtr<Node> Item2)
 			{
-				return FVector::Distance(roads[i + 1]->get_point(), Item1->get_point()) <
-					FVector::Distance(roads[i + 1]->get_point(), Item2->get_point());
+				return FVector::Distance(road_centers[i]->get_point(), Item1->get_point()) <
+					FVector::Distance(road_centers[i]->get_point(), Item2->get_point());
 			});
 		int success_roads = 0;
 		for (int j = 0; j < local_road.Num() - 1 && success_roads < 4; j++)
 		{
-			success_roads += create_guiding_road_segment(roads[i + 1], local_road[j]);
+			success_roads += create_guiding_road_segment(road_centers[i], local_road[j]);
 		}
 	}
 }
 
 bool AMainTerrain::create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point)
 {
-	if (AllGeometry::is_intersect_array(start_point, end_point, river, false).IsSet())
+	if (AllGeometry::is_intersect_array(start_point, end_point, river, true).IsSet())
 	{
 		return false;
 	}
@@ -747,79 +655,6 @@ void AMainTerrain::create_usual_roads()
 		}
 	}
 }
-void AMainTerrain::fix_broken_roads()
-{
-	TArray<TTuple<TSharedPtr<Node>, TSharedPtr<Node>>> new_array;
-	for (auto a : roads)
-	{
-		for (auto conn : a->conn)
-		{
-			auto intersec = AllGeometry::is_intersect_array(a->get_point(), conn->node->get_point(), roads, false);
-			if (intersec.IsSet())
-			{
-				TTuple<TSharedPtr<Node>, TSharedPtr<Node>>* FoundTuple = new_array.FindByPredicate(
-					[&](const TTuple<TSharedPtr<Node>, TSharedPtr<Node>>& Tuple)
-					{
-						return Tuple.Get<0>() == intersec->Value.Key && Tuple.Get<1>() == intersec->Value.Value ||
-							Tuple.Get<0>() == intersec->Value.Value && Tuple.Get<1>() == intersec->Value.Key;
-					});
-				if (FoundTuple == nullptr)
-				{
-					new_array.Add(MakeTuple(a, conn->node));
-				}
-				// new_array.Add(MakeTuple(a, conn->node));
-			}
-		}
-	}
-	for (auto& tuple : new_array)
-	{
-		auto a = tuple.Key;
-		auto conn = tuple.Value;
-		double dist = FVector::Dist(a->get_point(), conn->get_point());
-		if (!a->get_next_point(conn->get_node()).IsSet() || !conn->get_next_point(a->get_node()).IsSet())
-		{
-			continue;
-		}
-		if (AllGeometry::is_intersect_array(a->get_point(), conn->get_point(), roads, false))
-		{
-			for (int i = a->conn.Num() - 1; i >= 0; i--)
-			{
-				if (a->conn[i]->node->get_point() == conn->get_point())
-				{
-					a->conn.RemoveAt(i);
-					break;
-				}
-			}
-			for (int i = conn->conn.Num() - 1; i >= 0; i--)
-			{
-				if (conn->conn[i]->node->get_point() == a->get_point())
-				{
-					conn->conn.RemoveAt(i);
-					break;
-				}
-			}
-		}
-		if (AllGeometry::is_intersect_array(a->get_point(), conn->get_point(), river, false))
-		{
-			for (int i = a->conn.Num() - 1; i >= 0; i--)
-			{
-				if (a->conn[i]->node->get_point() == conn->get_point())
-				{
-					a->conn.RemoveAt(i);
-					break;
-				}
-			}
-			for (int i = conn->conn.Num() - 1; i >= 0; i--)
-			{
-				if (conn->conn[i]->node->get_point() == a->get_point())
-				{
-					conn->conn.RemoveAt(i);
-					break;
-				}
-			}
-		}
-	}
-}
 
 TOptional<TSharedPtr<Node>> AMainTerrain::create_road_segment(TArray<TSharedPtr<Node>>& array,
 															  TSharedPtr<Node> start_point, TSharedPtr<Node> end_point,
@@ -861,13 +696,13 @@ TOptional<TSharedPtr<Node>> AMainTerrain::create_road_segment(TArray<TSharedPtr<
 		{
 			end_point = intersection.GetValue();
 			tries++;
-			if (tries > 10 || FVector::Dist(start_point->get_point(), end_point->get_point()) > max_road_length)
+			if (tries > 10 || FVector::Distance(start_point->get_point(), end_point->get_point()) > max_road_length)
 			{
 				break;
 			}
 			intersection = AllGeometry::is_intersect_array_clear(start_point, end_point, array, false);
 		}
-		if (tries > 10 || FVector::Dist(start_point->get_point(), end_point->get_point()) > max_road_length ||
+		if (tries > 10 || FVector::Distance(start_point->get_point(), end_point->get_point()) > max_road_length ||
 			to_exect_point)
 		{
 			auto presise_intersect =
@@ -879,9 +714,8 @@ TOptional<TSharedPtr<Node>> AMainTerrain::create_road_segment(TArray<TSharedPtr<
 			}
 		}
 
-
 		auto river_intersection =
-			AllGeometry::is_intersect_array_clear(start_point->get_point(), end_point->get_point(), river, false);
+			AllGeometry::is_intersect_array_clear(start_point->get_point(), end_point->get_point(), river, true);
 		if (!river_intersection.IsSet())
 		{
 			add_conn(start_point, end_point);
@@ -919,40 +753,6 @@ void AMainTerrain::point_shift(FVector& point)
 		}
 	}
 	point += bias;
-}
-void AMainTerrain::smooth_road_corners()
-{
-	int counter = 0;
-	for (auto& node : roads)
-	{
-		FVector middle_point(0, 0, 0);
-
-		for (auto p : node->conn)
-		{
-			middle_point += p->node->get_point();
-		}
-		middle_point /= node->conn.Num();
-
-		bool is_continuing = (node->conn.Num() == 2);
-		if (is_continuing)
-		{
-			auto angle = AllGeometry::calculate_angle(node->conn[0]->node->get_point(), node->get_point(),
-													  node->conn[1]->node->get_point(), false);
-			if (angle < 155.0)
-			{
-				auto local_backup_node = node;
-				node->set_point(middle_point);
-				if (AllGeometry::is_intersect_array(node->get_point(), local_backup_node->get_point(), roads, true)
-						.IsSet() ||
-					AllGeometry::is_intersect_array(node->get_point(), local_backup_node->get_point(), river, true)
-						.IsSet())
-				{
-					node = local_backup_node;
-				}
-			}
-		}
-		counter++;
-	}
 }
 
 void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices,
@@ -1040,7 +840,6 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines)
 			{
 				continue;
 			}
-			bool some_error = false;
 			TSharedPtr<TArray<TSharedPtr<Point>>> figure_array = MakeShared<TArray<TSharedPtr<Point>>>();
 			TArray<TSharedPtr<Conn>> conn_array;
 			conn_array.Add(lconn);
@@ -1050,6 +849,7 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines)
 			figure_array->Add(lconn->node->get_node());
 			TSharedPtr<Node> rightest_node;
 			TSharedPtr<Conn> this_conn;
+			bool some_error = false;
 			bool not_in_figure = false;
 			while (second_node->get_point() != l->get_node()->point)
 			{
@@ -1073,7 +873,7 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines)
 				}
 				figure_array->Add(rightest_node->get_node());
 				conn_array.Add(this_conn);
-				if (figure_array->Num() > 200)
+				if (figure_array->Num() > 500)
 				{
 					some_error = true;
 					break;
@@ -1107,59 +907,53 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 {
 	blocks.Sort([this](Block Item1, Block Item2) { return Item1.area > Item2.area; });
 	blocks.RemoveAt(0);
-	bool royal_found = false;
-	for (auto& b : blocks)
-	{
-		for (auto& p : b.figure)
-		{
-			if (FVector::Dist(p->point, center) < (x_size + y_size) / 4)
-			{
-				b.set_type(block_type::royal);
-				royal_found = true;
-				for (auto f : b.figure)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("royal: %f,%f"), f->point.X, f->point.Y);
-				}
-				UE_LOG(LogTemp, Warning, TEXT("---------------------------"));
-				break;
-			}
-		}
-		if (royal_found)
-		{
-			break;
-		}
-	}
 
+	double royal_area = 0;
+	bool royal_found = false;
 	bool dock_found = false;
 	for (auto& b : blocks)
 	{
-		if (b.get_type() != block_type::unknown)
+		if (b.get_type() == block_type::unknown && !dock_found)
 		{
-			continue;
-		}
-		for (auto r : river)
-		{
-			if (b.is_point_in_figure(r->get_node()))
+			for (auto r : river)
 			{
-				b.set_type(block_type::dock);
-				dock_found = true;
-				for (auto f : b.figure)
+				if (b.is_point_in_figure(r->get_node()))
 				{
-					UE_LOG(LogTemp, Warning, TEXT("dock:  %f,%f"), f->point.X, f->point.Y);
+					dock_found = true;
+					b.set_type(block_type::dock);
+					break;
 				}
-				UE_LOG(LogTemp, Warning, TEXT("---------------------------"));
-				break;
 			}
 		}
-		if (dock_found)
+		if (b.get_type() == block_type::unknown && !royal_found)
 		{
-			break;
+			for (auto& p : b.figure)
+			{
+				if (FVector::Distance(p->point, center) < (x_size + y_size) / 10)
+				{
+					b.set_type(block_type::royal);
+					royal_area += b.area;
+					break;
+				}
+			}
+			if (royal_area < 100000)
+			{
+				for (auto& p : b.figure)
+				{
+					if (p->type == block_type::royal)
+					{
+						b.set_type(block_type::royal);
+						royal_area += b.area;
+						break;
+					}
+				}
+			}
+			else
+			{
+				royal_found = true;
+			}
 		}
 	}
-
-	// average_area -= biggest_area;
-	// roads.RemoveAt(biggest_block_counter);
-	// average_area /= (blocks.Num() - 1);
 }
 
 void AMainTerrain::draw_all()
@@ -1181,50 +975,55 @@ void AMainTerrain::draw_all()
 			DrawDebugLine(GetWorld(), rconn->node->get_point(), r->get_point(), FColor::Blue, true, -1, 0, 10);
 		}
 	}
-	for (auto r : roads)
+	for (int i = 0; i < roads.Num(); i++)
 	{
-		// DrawDebugSphere(GetWorld(), r->get_point(), 4, 8, FColor::Green, true, -1, 0, 1);
-		for (auto rconn : r->conn)
+		FColor color = FColor((255 / roads[i]->conn.Num() * i), 255, (255 / roads[i]->conn.Num() * i));
+
+		// DrawDebugSphere(GetWorld(), roads[i]->get_point(), 4, 8, color, true, -1, 0, 1);
+
+		for (int j = 0; j < roads[i]->conn.Num(); j++)
 		{
-			auto color = FColor::Green;
-			// if (FVector::Dist(rconn->node->get_point(), r->get_point()) > max_road_length)
+			// auto color = FColor::Green;
+			// if (FVector::Distance(rconn->node->get_point(), r->get_point()) > max_road_length)
 			// {
 			// 	color = FColor::Red;
 			// }
-			if (r->get_type() == point_type::main_road && rconn->node->get_type() == point_type::main_road)
-			{
-				DrawDebugLine(GetWorld(), rconn->node->get_point(), r->get_point(), color, true, -1, 0, 1);
-			}
-			else
-			{
-				DrawDebugLine(GetWorld(), rconn->node->get_point(), r->get_point(), color, true, -1, 0, 1);
-			}
+			// if (r->get_type() == point_type::main_road && r->conn[i]->node->get_type() == point_type::main_road)
+			// {
+			// DrawDebugLine(GetWorld(), roads[i]->conn[j]->node->get_point(), roads[i]->get_point(), FColor::Green,
+			// true, 			  -1, 0, 3);
+			// }
+			// else
+			// {
+			// 	DrawDebugLine(GetWorld(), r->conn[i]->node->get_point(), r->get_point(), color, true, -1, 0, 1);
+			// }
 		}
 	}
 	for (auto r : figures_array)
 	{
 		FColor color;
+		int thickness = 1;
 		auto figure_we_got = r.figure;
 		for (int i = 1; i < figure_we_got.Num(); i++)
 		{
 			if (r.get_type() == block_type::dock)
 			{
 				color = FColor((255 / figure_we_got.Num() * i), (255 / figure_we_got.Num() * i), 255);
-				DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
-				DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, FColor::Blue, true, -1,
-							  0, 3);
+				thickness = 5;
+				// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
 			}
 			else if (r.get_type() == block_type::royal)
 			{
 				color = FColor(255, (255 / figure_we_got.Num() * i), (255 / figure_we_got.Num() * i));
-				DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
-				DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, FColor::Red, true, -1,
-							  0, 3);
+				thickness = 5;
 			}
 			else
 			{
-				continue;
+				color = FColor::Green;
+				thickness = 1;
 			}
+			DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, color, true, -1, 0,
+						  thickness);
 		}
 	}
 }
