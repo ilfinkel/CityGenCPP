@@ -126,10 +126,6 @@ static double y_size = 4000;
 class CITY_API AllGeometry
 {
 public:
-	AllGeometry();
-	~AllGeometry();
-
-public:
 	static TOptional<FVector> is_intersect(const FVector& line1_begin, const FVector& line1_end,
 										   const FVector& line2_begin, const FVector& line2_end, bool is_opened);
 
@@ -142,7 +138,9 @@ public:
 	static TOptional<TSharedPtr<Node>> is_intersect_array_clear(const TSharedPtr<Node>& line1_begin,
 																const TSharedPtr<Node>& line1_end,
 																const TArray<TSharedPtr<Node>>& lines, bool is_opened);
-	static TOptional<FVector> is_intersect_array_clear(const FVector& line1_begin, const FVector& line1_end,
+	static int is_intersect_array_count(const TSharedPtr<Node>& line_begin, const TSharedPtr<Node>& line_end,
+										const TArray<TSharedPtr<Node>>& lines, bool is_opened);
+	static TOptional<FVector> is_intersect_array_clear(const FVector& line_begin, const FVector& line_end,
 													   const TArray<TSharedPtr<Node>>& lines, bool is_opened);
 	static FVector create_segment_at_angle(const FVector& line_begin, const FVector& line_end,
 										   const FVector& line_beginPoint, double angle_in_degrees, double length);

@@ -23,7 +23,9 @@ public:
 	// UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Procedural Mesh")
 	// UProceduralMeshComponent* ProceduralMesh;
 	FVector center = FVector(x_size / 2, y_size / 2, 0);
-	double av_river_length = ((x_size + y_size) / 2) / 20;
+	double av_distance = (x_size + y_size) / 4;
+	double av_river_length = 50;
+	double max_river_length = 120;
 	double min_road_length = 45;
 	double av_road_length = 70;
 	double max_road_length = 95;
@@ -42,14 +44,17 @@ private:
 	TSharedPtr<Node> insert_conn(TSharedPtr<Node> node1_to_insert, TSharedPtr<Node> node2_to_insert,
 								 FVector node3_point);
 	void create_terrain();
-	void tick_river(TSharedPtr<Node>& node);
-	void tick_road(TSharedPtr<Node>& node);
+	void move_river(TSharedPtr<Node>& node1, TSharedPtr<Node>& node2);
+	void move_road(TSharedPtr<Node>& node);
 	void create_guiding_rivers();
-	void create_guiding_river_segment(TSharedPtr<Node> start_point, TSharedPtr<Node> end_point);
+	void create_guiding_river_segment(TSharedPtr<Node> start_point, TSharedPtr<Node> end_point,
+									  TSharedPtr<Node> start_point_left, TSharedPtr<Node> start_point_right);
+	void process_bridges();
 	void create_guiding_roads();
 	void create_usual_roads();
-	TOptional<TSharedPtr<Node>> create_road_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
-													TSharedPtr<Node> end_point, bool to_exect_point, point_type type);
+	TOptional<TSharedPtr<Node>> create_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
+											   TSharedPtr<Node> end_point, bool to_exect_point, point_type type,
+											   double max_length);
 	bool create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float ExtrusionHeight);
 	void shrink_roads();
@@ -58,6 +63,8 @@ private:
 	void process_blocks(TArray<Block>& blocks);
 	void draw_all();
 	TArray<TSharedPtr<Node>> river;
+	TArray<TSharedPtr<Node>> guiding_river;
+	TArray<TTuple<TSharedPtr<Node>, TSharedPtr<Node>>> bridges;
 	TArray<TSharedPtr<Node>> roads;
 	TArray<TSharedPtr<Node>> road_centers;
 	TArray<FVector> map_points_array;

@@ -149,7 +149,7 @@ TOptional<FVector> AllGeometry::is_intersect(const FVector& line1_begin, const F
 
 
 TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> AllGeometry::is_intersect_array(
-	const TSharedPtr<Node>& line1_begin, const TSharedPtr<Node>& line1_end, const TArray<TSharedPtr<Node>>& lines,
+	const TSharedPtr<Node>& line_begin, const TSharedPtr<Node>& line_end, const TArray<TSharedPtr<Node>>& lines,
 	bool is_opened)
 {
 	TTuple<TSharedPtr<Node>, TSharedPtr<Node>> point_line;
@@ -159,11 +159,11 @@ TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> AllGeomet
 	{
 		for (auto& conn : line->conn)
 		{
-			TOptional<FVector> int_point = is_intersect(line1_begin->get_point(), line1_end->get_point(),
+			TOptional<FVector> int_point = is_intersect(line_begin->get_point(), line_end->get_point(),
 														line->get_point(), conn->node->get_point(), is_opened);
 			if (int_point.IsSet())
 			{
-				double dist_to_line = FVector::Dist(line1_begin->get_point(), int_point.GetValue());
+				double dist_to_line = FVector::Dist(line_begin->get_point(), int_point.GetValue());
 				if (dist_to_line < dist)
 				{
 					// point_line = PointLine(line->node, conn->node);
@@ -183,8 +183,9 @@ TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> AllGeomet
 	return final_tuple;
 }
 
+
 TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> AllGeometry::is_intersect_array(
-	FVector line1_begin, FVector line1_end, const TArray<TSharedPtr<Node>>& lines, bool is_opened)
+	FVector line_begin, FVector line_end, const TArray<TSharedPtr<Node>>& lines, bool is_opened)
 {
 	TTuple<TSharedPtr<Node>, TSharedPtr<Node>> point_line;
 	double dist = TNumericLimits<double>::Max();
@@ -194,10 +195,10 @@ TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> AllGeomet
 		for (auto& conn : line->conn)
 		{
 			TOptional<FVector> int_point =
-				is_intersect(line1_begin, line1_end, line->get_point(), conn->node->get_point(), is_opened);
+				is_intersect(line_begin, line_end, line->get_point(), conn->node->get_point(), is_opened);
 			if (int_point.IsSet())
 			{
-				double dist_to_line = FVector::Dist(line1_begin, int_point.GetValue());
+				double dist_to_line = FVector::Dist(line_begin, int_point.GetValue());
 				if (dist_to_line < dist)
 				{
 					// point_line = PointLine(line->node, conn->node);
@@ -218,11 +219,11 @@ TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> AllGeomet
 }
 
 
-TOptional<TSharedPtr<Node>> AllGeometry::is_intersect_array_clear(const TSharedPtr<Node>& line1_begin,
-																  const TSharedPtr<Node>& line1_end,
+TOptional<TSharedPtr<Node>> AllGeometry::is_intersect_array_clear(const TSharedPtr<Node>& line_begin,
+																  const TSharedPtr<Node>& line_end,
 																  const TArray<TSharedPtr<Node>>& lines, bool is_opened)
 {
-	auto inter_segment = is_intersect_array(line1_begin, line1_end, lines, is_opened);
+	auto inter_segment = is_intersect_array(line_begin, line_end, lines, is_opened);
 	if (!inter_segment.IsSet())
 	{
 		return TOptional<TSharedPtr<Node>>();
@@ -232,11 +233,28 @@ TOptional<TSharedPtr<Node>> AllGeometry::is_intersect_array_clear(const TSharedP
 		? inter_segment->Value.Key
 		: inter_segment->Value.Value;
 }
+int AllGeometry::is_intersect_array_count(const TSharedPtr<Node>& line_begin, const TSharedPtr<Node>& line_end,
+										  const TArray<TSharedPtr<Node>>& lines, bool is_opened)
+{
+	int count = 0;
+	for (auto l : lines)
+	{
+		for (auto& conn : l->conn)
+		{
+			if (is_intersect(line_begin->get_point(), line_end->get_point(), l->get_point(), conn->node->get_point(),
+							 is_opened))
+			{
+				count++;
+			}
+		}
+	}
+	return count / 2;
+}
 
-TOptional<FVector> AllGeometry::is_intersect_array_clear(const FVector& line1_begin, const FVector& line1_end,
+TOptional<FVector> AllGeometry::is_intersect_array_clear(const FVector& line_begin, const FVector& line_end,
 														 const TArray<TSharedPtr<Node>>& lines, bool is_opened)
 {
-	auto inter_segment = is_intersect_array(line1_begin, line1_end, lines, is_opened);
+	auto inter_segment = is_intersect_array(line_begin, line_end, lines, is_opened);
 	if (!inter_segment.IsSet())
 	{
 		return TOptional<FVector>();
@@ -297,7 +315,7 @@ float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
 		const FVector& NextVertex = Vertices[(i) % NumVertices]->point; // Закольцовываем
 
 		// Площадь через векторное произведение
-		Area += FMath::Abs((CurrentVertex.X + NextVertex.X) * (NextVertex.Y - CurrentVertex.Y)) / 2;
+		Area += FMath::Abs((CurrentVertex.X + NextVertex.X) * (NextVertex.Y - CurrentVertex.Y));
 	}
 
 	// Проекция площади на плоскость, нормаль к которой перпендикулярна нормали полигона
