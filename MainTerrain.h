@@ -24,8 +24,8 @@ public:
 	// UProceduralMeshComponent* ProceduralMesh;
 	FVector center = FVector(x_size / 2, y_size / 2, 0);
 	double av_distance = (x_size + y_size) / 4;
-	double av_river_length = 50;
-	double max_river_length = 120;
+	double av_river_length = 80;
+	double max_river_length = 150;
 	double min_road_length = 45;
 	double av_road_length = 70;
 	double max_road_length = 95;
@@ -60,6 +60,7 @@ private:
 	void shrink_roads();
 	void point_shift(FVector& point);
 	void get_closed_figures(TArray<TSharedPtr<Node>> lines);
+	void get_river_figure();
 	void process_blocks(TArray<Block>& blocks);
 	void draw_all();
 	TArray<TSharedPtr<Node>> river;

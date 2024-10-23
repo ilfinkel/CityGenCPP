@@ -38,7 +38,30 @@ Block::Block(TArray<TSharedPtr<Point>> figure_)
 	figure = figure_;
 
 	area = AllGeometry::get_poygon_area(figure);
-	type = block_type::unknown;
+	// type = block_type::unknown;
+	if (area < 50000)
+	{
+		set_type(block_type::empty);
+	}
+	// TSet<block_type> first_node(TSet<block_type>(figure[0]->blocks_nearby));
+	// for (auto a : figure[0]->blocks_nearby)
+	// {
+	// 	first_node.Add(a);
+	// }
+	// for (int i = 1; i < figure.Num(); i++)
+	// {
+	// 	first_node.Intersect(TSet<block_type>(figure[i]->blocks_nearby));
+	// 	if (first_node.IsEmpty())
+	// 	{
+	// 		break;
+	// 	}
+	// }
+	// if (!first_node.IsEmpty())
+	// {
+	// 	set_type(*first_node.CreateConstIterator());
+	// }
+
+
 	// AllGeometry::change_size(figure, 0.7f);
 }
 

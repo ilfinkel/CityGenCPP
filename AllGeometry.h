@@ -21,6 +21,7 @@ enum block_type
 	residential,
 	luxury,
 	slums,
+	empty,
 	unknown
 };
 
@@ -107,6 +108,11 @@ protected:
 
 struct Block
 {
+	Block()
+	{
+		area = 0;
+		figure = TArray<TSharedPtr<Point>>();
+	};
 	Block(TArray<TSharedPtr<Point>> figure_);
 	TArray<TSharedPtr<Point>> figure;
 	double area;

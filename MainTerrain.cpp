@@ -93,7 +93,7 @@ void AMainTerrain::move_river(TSharedPtr<Node>& node1, TSharedPtr<Node>& node2)
 	}
 	if (
 		// FVector::Distance(point1, point2) > max_river_length / 3 * 2 ||
-		FVector::Distance(point1, point2) < av_river_length)
+		FVector::Distance(point1, point2) < av_river_length / 3 * 2)
 	{
 		return;
 	}
@@ -191,18 +191,19 @@ void AMainTerrain::create_terrain()
 		for (int y = 1; y < point_row_counter; y++)
 		{
 			weighted_points.Add(WeightedPoint{
-				FVector(static_cast<int>(x_size / point_row_counter * x +
-										 (rand() % (static_cast<int>(x_size / point_row_counter / 2))) -
-										 (x_size / point_row_counter / 4)),
-						static_cast<int>(y_size / point_row_counter * y) +
-							(rand() % (static_cast<int>(x_size / point_row_counter / 2))) -
-							(x_size / point_row_counter / 4),
+				FVector(static_cast<int>(av_size / point_row_counter * x +
+										 (rand() % (static_cast<int>(av_size / point_row_counter / 2))) -
+										 (av_size / point_row_counter / 4)),
+						static_cast<int>(av_size / point_row_counter * y) +
+							(rand() % (static_cast<int>(av_size / point_row_counter / 2))) -
+							(av_size / point_row_counter / 4),
 						0),
 				(rand() % static_cast<int>(av_size / point_row_counter / 2)) + (av_size / point_row_counter / 3)});
 		}
 	}
 
 	create_guiding_rivers();
+	get_river_figure();
 	for (int iter = 0; iter < 100; iter++)
 	{
 		for (auto& b : bridges)
@@ -392,6 +393,10 @@ void AMainTerrain::create_guiding_river_segment(TSharedPtr<Node> start_point, TS
 			create_guiding_river_segment(end_point, next_segment2, old_node_left, old_node_right);
 		}
 	}
+	else
+	{
+		add_conn(old_node_left, old_node_right);
+	}
 }
 void AMainTerrain::process_bridges()
 {
@@ -399,8 +404,7 @@ void AMainTerrain::process_bridges()
 		[&](const TTuple<TSharedPtr<Node>, TSharedPtr<Node>>& A)
 		{
 			return rand() % 5 >= 4 ||
-				FVector::Distance(A.Key->get_point(), FVector(x_size / 2, y_size / 2, 0)) > (y_size / 5) ||
-				FVector::Distance(A.Value->get_point(), FVector(x_size / 2, y_size / 2, 0)) > (y_size / 5) ||
+				FVector::Distance(A.Key->get_point(), A.Value->get_point()) > (max_river_length * 3 / 2) ||
 				AllGeometry::is_intersect_array_count(A.Key, A.Value, river, true) % 2 != 0;
 		});
 
@@ -596,14 +600,16 @@ void AMainTerrain::shrink_roads()
 	while (road_points != old_road_points)
 	{
 		old_road_points = roads.Num();
-		for (int i = road_points - 1; i >= 0; i--)
-		{
-			if (roads[i]->conn.Num() < 2)
+		roads.RemoveAll(
+			[&](TSharedPtr<Node> A)
 			{
-				roads[i]->delete_me();
-				roads.RemoveAt(i);
-			}
-		}
+				if (A->conn.Num() < 2)
+				{
+					A->delete_me();
+					return true;
+				}
+				return false;
+			});
 		road_points = roads.Num();
 	}
 }
@@ -1014,6 +1020,142 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines)
 		}
 	}
 }
+void AMainTerrain::get_river_figure()
+{
+	Block river_figure;
+	for (auto l : river)
+	{
+		for (auto lconn : l->conn)
+		{
+			if (!lconn->figure->IsEmpty() || lconn->not_in_figure)
+			{
+				continue;
+			}
+			TSharedPtr<TArray<TSharedPtr<Point>>> figure_array = MakeShared<TArray<TSharedPtr<Point>>>();
+			TArray<TSharedPtr<Conn>> conn_array;
+			conn_array.Add(lconn);
+			auto first_node = l;
+			auto second_node = lconn->node;
+			figure_array->Add(l->get_node());
+			figure_array->Add(lconn->node->get_node());
+			TSharedPtr<Node> rightest_node;
+			TSharedPtr<Conn> this_conn;
+			bool not_in_figure = false;
+			while (second_node->get_point() != l->get_node()->point)
+			{
+				double smallest_angle = 360;
+				for (int i = 0; i < second_node->conn.Num(); i++)
+				{
+					double angle =
+						AllGeometry::calculate_angle(second_node->conn[i]->node->get_point(), second_node->get_point(),
+													 first_node->get_point(), true);
+					if (angle < smallest_angle && angle > 1)
+					{
+						smallest_angle = angle;
+						rightest_node = second_node->conn[i]->node;
+						this_conn = second_node->conn[i];
+					}
+				}
+				if (smallest_angle == 360)
+				{
+					not_in_figure = true;
+					break;
+				}
+				figure_array->Add(rightest_node->get_node());
+				conn_array.Add(this_conn);
+				first_node = second_node;
+				second_node = rightest_node;
+			}
+			if (not_in_figure)
+			{
+				for (auto conn : conn_array)
+				{
+					conn->not_in_figure = true;
+				}
+			}
+			else
+			{
+				for (auto conn : conn_array)
+				{
+					conn->figure = figure_array;
+				}
+				if (river_figure.figure.Num() < figure_array->Num())
+				{
+					river_figure = Block(*figure_array);
+				}
+			}
+		}
+	}
+	river.RemoveAll(
+		[&](TSharedPtr<Node> A)
+		{
+			for (auto exist_f : river_figure.figure)
+			{
+				if (A->get_point() == exist_f->point)
+				{
+					return false;
+				}
+			}
+			A->delete_me();
+			return true;
+		});
+
+
+	// for (auto& r : river)
+	// {
+	river.RemoveAll(
+		[&](TSharedPtr<Node>& r)
+		{
+			for (int i = 1; i < river_figure.figure.Num() - 1; i++)
+			{
+				if (r->conn.Num() > 2)
+				{
+					TSharedPtr<Node> prev;
+					TSharedPtr<Node> next;
+					for (auto c : r->conn)
+					{
+						if (c->node->get_point() == river_figure.figure[i - 1]->point)
+						{
+							prev = c->node;
+						}
+						if (c->node->get_point() == river_figure.figure[i + 1]->point)
+						{
+							next = c->node;
+						}
+					}
+					if (prev && next)
+					{
+						add_conn(prev, next);
+						r->delete_me();
+						return true;
+					}
+				}
+			}
+			return false;
+		});
+
+	bridges.RemoveAll(
+		[&](const TTuple<TSharedPtr<Node>, TSharedPtr<Node>>& A)
+		{
+			bool is_key_in = false;
+			bool is_value_in = false;
+			int counter = 0;
+			for (auto river_point : river)
+			{
+				if (A.Key->get_point() == river_point->get_point())
+				{
+					is_key_in = true;
+					continue;
+				}
+				if (A.Value->get_point() == river_point->get_point())
+				{
+					is_value_in = true;
+					continue;
+				}
+			}
+			return is_key_in && is_value_in ? false : true;
+		});
+}
 void AMainTerrain::process_blocks(TArray<Block>& blocks)
 {
 	blocks.Sort([this](Block Item1, Block Item2) { return Item1.area > Item2.area; });
@@ -1030,15 +1172,16 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 			if (b.is_point_in_figure(r->get_node()))
 			{
 				is_river = true;
+				b.set_type(block_type::dock);
 				break;
 			}
 		}
-		if (b.get_type() == block_type::unknown && !dock_found && is_river)
-		{
-			dock_found = true;
-			b.set_type(block_type::dock);
-			break;
-		}
+		// if (b.get_type() == block_type::unknown && !dock_found && is_river)
+		// {
+		// 	dock_found = true;
+		// 	b.set_type(block_type::dock);
+		// 	break;
+		// }
 		if (b.get_type() == block_type::unknown && !royal_found && royal_area == 0)
 		{
 			bool point1 = false;
@@ -1116,10 +1259,6 @@ void AMainTerrain::draw_all()
 
 	for (int i = 0; i < roads.Num(); i++)
 	{
-		// FColor color = FColor((255 / roads[i]->conn.Num() * i), 255, (255 / roads[i]->conn.Num() * i));
-		//
-		// DrawDebugSphere(GetWorld(), roads[i]->get_point(), 4, 8, color, true, -1, 0, 1);
-
 		for (int j = 0; j < roads[i]->conn.Num(); j++)
 		{
 			FColor color = FColor::Green;
@@ -1137,21 +1276,26 @@ void AMainTerrain::draw_all()
 		{
 			if (r.get_type() == block_type::residential)
 			{
-				color = FColor((255 / figure_we_got.Num() * i), 255, 255 / figure_we_got.Num() * i);
+				color = FColor(0, 255, 0);
 				thickness = 5;
 				// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
 			}
 			else if (r.get_type() == block_type::dock)
 			{
-				color = FColor((255 / figure_we_got.Num() * i), (255 / figure_we_got.Num() * i), 255);
+				color = FColor(0, 0, 255);
 				thickness = 5;
 				// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
 			}
 			else if (r.get_type() == block_type::royal)
 			{
-				color = FColor(255, (255 / figure_we_got.Num() * i), (255 / figure_we_got.Num() * i));
+				color = FColor(255, 0, 0);
 				thickness = 5;
 			}
+			// else if (r.get_type() == block_type::empty)
+			// {
+			// 	color = FColor(255, 255, 255);
+			// 	thickness = 3;
+			// }
 			else
 			{
 				break;
