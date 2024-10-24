@@ -27,6 +27,11 @@ void AMainTerrain::Tick(float DeltaTime)
 }
 void AMainTerrain::add_conn(TSharedPtr<Node> node1, TSharedPtr<Node> node2)
 {
+	if (node1->get_point() == node2->get_point())
+	{
+		return;
+	}
+
 	if (!node1->get_next_point(node2->get_node()).IsSet())
 	{
 		node1->add_connection(node2);
@@ -600,12 +605,43 @@ void AMainTerrain::shrink_roads()
 	while (road_points != old_road_points)
 	{
 		old_road_points = roads.Num();
+		auto array = roads;
 		roads.RemoveAll(
-			[&](TSharedPtr<Node> A)
+			[&](TSharedPtr<Node> node)
 			{
-				if (A->conn.Num() < 2)
+				TSharedPtr<Node> target_node = nullptr;
+				for (auto conn : node->conn)
 				{
-					A->delete_me();
+					if (FVector::Dist(node->get_point(), conn->node->get_point()) < min_road_length)
+					{
+						target_node = conn->node;
+						break;
+					}
+				}
+				if (target_node.IsValid())
+				{
+					for (auto del_node : node->conn)
+					{
+						add_conn(del_node->node, target_node);
+					}
+					node->delete_me();
+					return true;
+				}
+				return false;
+			});
+		road_points = roads.Num();
+	}
+	road_points = roads.Num();
+	old_road_points = TNumericLimits<int>::Max();
+	while (road_points != old_road_points)
+	{
+		old_road_points = roads.Num();
+		roads.RemoveAll(
+			[&](TSharedPtr<Node> node)
+			{
+				if (node->conn.Num() < 2)
+				{
+					node->delete_me();
 					return true;
 				}
 				return false;
@@ -635,9 +671,9 @@ void AMainTerrain::create_usual_roads()
 				{
 					auto length = FVector::Distance(road_node->get_point(), road_node->conn[0]->node->get_point()) +
 						(rand() % 40) - 20;
-					if (length < min_road_length)
+					if (length < min_new_road_length)
 					{
-						length = min_road_length;
+						length = min_new_road_length;
 					}
 					if (length > max_road_length)
 					{
@@ -672,9 +708,9 @@ void AMainTerrain::create_usual_roads()
 				{
 					auto length = FVector::Distance(road_node->get_point(), road_node->conn[0]->node->get_point()) +
 						(rand() % 40) - 20;
-					if (length < min_road_length)
+					if (length < min_new_road_length)
 					{
-						length = min_road_length;
+						length = min_new_road_length;
 					}
 					if (length > max_road_length)
 					{
@@ -705,9 +741,9 @@ void AMainTerrain::create_usual_roads()
 				{
 					auto length = FVector::Distance(road_node->get_point(), road_node->conn[0]->node->get_point()) +
 						(rand() % 40) - 20;
-					if (length < min_road_length)
+					if (length < min_new_road_length)
 					{
-						length = min_road_length;
+						length = min_new_road_length;
 					}
 					if (length > max_road_length)
 					{

@@ -26,7 +26,8 @@ public:
 	double av_distance = (x_size + y_size) / 4;
 	double av_river_length = 80;
 	double max_river_length = 150;
-	double min_road_length = 45;
+	double min_new_road_length = 45;
+	double min_road_length = 10;
 	double av_road_length = 70;
 	double max_road_length = 95;
 	double river_road_distance = 60; //((x_size + y_size) / 2) / 20;

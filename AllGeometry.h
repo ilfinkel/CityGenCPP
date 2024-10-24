@@ -75,6 +75,7 @@ struct Conn
 	TSharedPtr<Node> node;
 	TSharedPtr<TArray<TSharedPtr<Point>>> figure;
 	bool not_in_figure;
+	bool operator==(Conn& other) { return this->node == other.node; }
 };
 
 struct Node
@@ -101,6 +102,7 @@ struct Node
 	TOptional<TSharedPtr<Conn>> get_prev_point(TSharedPtr<Point> point);
 	void add_connection(const TSharedPtr<Node>& node_);
 	void delete_me();
+	bool operator==(const Node&) const { return this->node->point == node->point; }
 
 protected:
 	TSharedPtr<Point> node;
