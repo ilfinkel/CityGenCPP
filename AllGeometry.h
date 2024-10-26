@@ -18,8 +18,8 @@ enum block_type
 {
 	royal,
 	dock,
-	residential,
 	luxury,
+	residential,
 	slums,
 	empty,
 	unknown
@@ -112,6 +112,7 @@ struct Block
 {
 	Block()
 	{
+		type = block_type::unknown;
 		area = 0;
 		figure = TArray<TSharedPtr<Point>>();
 	};

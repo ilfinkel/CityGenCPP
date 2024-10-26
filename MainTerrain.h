@@ -4,6 +4,7 @@
 #include <list>
 #include <random>
 
+#include "Algo/Reverse.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "HAL/Runnable.h"
@@ -19,6 +20,10 @@ class CITY_API AMainTerrain : public AActor
 public:
 	// Sets default values for this actor's properties
 	AMainTerrain();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+	UMaterialInterface* MeshMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+	UMaterialInterface* MeshMaterial2;
 
 	// UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Procedural Mesh")
 	// UProceduralMeshComponent* ProceduralMesh;
@@ -57,7 +62,10 @@ private:
 											   TSharedPtr<Node> end_point, bool to_exect_point, point_type type,
 											   double max_length);
 	bool create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
-	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float ExtrusionHeight);
+	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float StarterHeight,
+					 float ExtrusionHeight, FLinearColor color);
+	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices, float StarterHeight,
+					 float ExtrusionHeight, FLinearColor color);
 	void shrink_roads();
 	void point_shift(FVector& point);
 	void get_closed_figures(TArray<TSharedPtr<Node>> lines);

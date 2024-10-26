@@ -38,7 +38,7 @@ Block::Block(TArray<TSharedPtr<Point>> figure_)
 	figure = figure_;
 
 	area = AllGeometry::get_poygon_area(figure);
-	// type = block_type::unknown;
+	type = block_type::unknown;
 	if (area < 50000)
 	{
 		set_type(block_type::empty);
@@ -309,7 +309,7 @@ double AllGeometry::calculate_angle(const FVector& A, const FVector& B, const FV
 	double AngleRadians = FMath::Acos(CosTheta);
 	if (is_clockwork == true)
 	{
-		FVector CrossProduct = FVector::CrossProduct(BA, BC);
+		FVector CrossProduct = FVector::CrossProduct(BC, BA);
 		if (CrossProduct.Z > 0)
 		{
 			AngleRadians = 2 * PI - AngleRadians;
@@ -323,10 +323,8 @@ double AllGeometry::calculate_angle(const FVector& A, const FVector& B, const FV
 float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
 {
 	int32 NumVertices = Vertices.Num();
-	NumVertices--;
 	if (NumVertices < 3)
 	{
-		// Многоугольник должен иметь минимум 3 вершины
 		return 0.0f;
 	}
 
@@ -335,13 +333,11 @@ float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
 	for (int32 i = 1; i < NumVertices; ++i)
 	{
 		const FVector& CurrentVertex = Vertices[i - 1]->point;
-		const FVector& NextVertex = Vertices[(i) % NumVertices]->point; // Закольцовываем
+		const FVector& NextVertex = Vertices[i]->point;
 
-		// Площадь через векторное произведение
-		Area += FMath::Abs((CurrentVertex.X + NextVertex.X) * (NextVertex.Y - CurrentVertex.Y));
+		Area += FMath::Abs(CurrentVertex.X * NextVertex.Y - CurrentVertex.Y * NextVertex.X);
 	}
 
-	// Проекция площади на плоскость, нормаль к которой перпендикулярна нормали полигона
 	Area = Area / 2;
 
 	return Area;

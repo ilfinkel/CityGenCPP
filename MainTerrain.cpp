@@ -11,7 +11,6 @@ void AMainTerrain::BeginPlay()
 	PrimaryActorTick.bCanEverTick = true;
 	Super::BeginPlay();
 
-
 	create_terrain();
 	get_closed_figures(roads);
 	process_blocks(figures_array);
@@ -267,25 +266,6 @@ void AMainTerrain::create_terrain()
 	}
 
 	shrink_roads();
-
-	// auto test_node_node1 = MakeShared<Node>(300, 300, 0);
-	// auto test_node_node2 = MakeShared<Node>(300, y_size - 300, 0);
-	// auto test_node_node3 = MakeShared<Node>(x_size - 300, y_size - 300, 0);
-	// auto test_node_node4 = MakeShared<Node>(x_size - 300, 300, 0);
-	// // auto test_node_node5 = MakeShared<Node>(x_size, 300, 0);
-	// //
-	// roads.Add(test_node_node1);
-	// roads.Add(test_node_node2);
-	// roads.Add(test_node_node3);
-	// roads.Add(test_node_node4);
-	// // roads.Add(test_node_node5);
-	// add_conn(test_node_node1, test_node_node2);
-	// add_conn(test_node_node2, test_node_node3);
-	// add_conn(test_node_node3, test_node_node4);
-	// add_conn(test_node_node4, test_node_node1);
-	// // add_conn(test_node_node5, test_node_node3, false);
-	// // add_conn(test_node_node5, test_node_node4, false);
-	// // add_conn(test_node_node3, test_node_node1, true);
 }
 
 void AMainTerrain::create_guiding_rivers()
@@ -908,78 +888,77 @@ void AMainTerrain::point_shift(FVector& point)
 	point += bias;
 }
 
-void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices,
-							   float ExtrusionHeight)
+void AMainTerrain::create_mesh(UProceduralMeshComponent* MeshComponent, TArray<TSharedPtr<Node>> BaseVertices,
+							   float StarterHeight, float ExtrusionHeight, FLinearColor color)
 {
-	// ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
-	// RootComponent = ProceduralMesh;
-	//
-	// TArray<FVector> Vertices;
-	// TArray<int32> Triangles;
-	//
-	// // Шаг 1: Добавляем вершины базовой фигуры и экструзированные вершины
-	// int32 NumBaseVertices = BaseVertices.Num();
-	//
-	// // Добавляем вершины плоской фигуры (нижняя плоскость)
-	// for (auto Vertex : BaseVertices)
-	// {
-	// 	Vertices.Add(Vertex->node); // Нижняя грань
-	// }
-	//
-	// // Добавляем экструзированные вершины (верхняя плоскость)
-	// for (auto Vertex : BaseVertices)
-	// {
-	// 	Vertices.Add(Vertex->node + FVector(0, 0, ExtrusionHeight)); // Верхняя грань
-	// }
-	//
-	// // Шаг 2: Создаем треугольники для боковых граней
-	// for (int32 i = 0; i < NumBaseVertices; i++)
-	// {
-	// 	int32 NextIndex = (i + 1) % NumBaseVertices; // Индекс следующей вершины для замыкания
-	//
-	// 	// Боковая грань (состоит из двух треугольников)
-	// 	Triangles.Add(i); // Нижняя грань (текущая вершина)
-	// 	Triangles.Add(i + NumBaseVertices); // Верхняя грань (текущая экструзированная вершина)
-	// 	Triangles.Add(NextIndex); // Нижняя грань (следующая вершина)
-	//
-	// 	Triangles.Add(NextIndex); // Нижняя грань (следующая вершина)
-	// 	Triangles.Add(i + NumBaseVertices); // Верхняя грань (текущая экструзированная вершина)
-	// 	Triangles.Add(NextIndex + NumBaseVertices); // Верхняя грань (следующая экструзированная вершина)
-	// }
-	//
-	// // Шаг 3: Создаем треугольники для нижней грани
-	// for (int32 i = 1; i < NumBaseVertices - 1; i++)
-	// {
-	// 	Triangles.Add(0);
-	// 	Triangles.Add(i);
-	// 	Triangles.Add(i + 1);
-	// }
-	//
-	// // Шаг 4: Создаем треугольники для верхней грани (перевёрнутые индексы, чтобы нормали смотрели вверх)
-	// for (int32 i = 1; i < NumBaseVertices - 1; i++)
-	// {
-	// 	Triangles.Add(NumBaseVertices); // Начальная точка верхней грани
-	// 	Triangles.Add(NumBaseVertices + i + 1);
-	// 	Triangles.Add(NumBaseVertices + i);
-	// }
-	//
-	// // Шаг 5: Создаем нормали, UV и другие параметры (опционально)
-	// TArray<FVector> Normals;
-	// TArray<FVector2D> UVs;
-	// TArray<FLinearColor> VertexColors;
-	// TArray<FProcMeshTangent> Tangents;
-	//
-	// // Добавляем заготовки для нормалей, UV и т.д.
-	// for (int32 i = 0; i < Vertices.Num(); i++)
-	// {
-	// 	Normals.Add(FVector(0, 0, 1)); // Пример, что все нормали смотрят вверх
-	// 	UVs.Add(FVector2D(0, 0)); // Заглушка UV
-	// 	VertexColors.Add(FLinearColor::White); // Цвет вершин (белый)
-	// 	Tangents.Add(FProcMeshTangent(1, 0, 0)); // Пример тангенса
-	// }
-	//
-	// // Шаг 6: Создаем Mesh секцию
-	// Mesh->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UVs, VertexColors, Tangents, true);
+	TArray<TSharedPtr<Point>> vertices;
+	for (auto BaseVertex : BaseVertices)
+	{
+		vertices.Add(BaseVertex->get_node());
+	}
+	create_mesh(MeshComponent, vertices, StarterHeight, ExtrusionHeight, FColor::White);
+}
+void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices,
+							   float StarterHeight, float ExtrusionHeight, FLinearColor color)
+{
+	TArray<FVector> Vertices;
+	TArray<int32> Triangles;
+
+	int32 VertexCount = BaseVertices.Num();
+
+	// Создаем нижнюю грань (плоскую фигуру)
+	for (TSharedPtr<Point> Vertex : BaseVertices)
+	{
+		Vertices.Add(Vertex->point + FVector(0, 0, StarterHeight));
+	}
+	for (TSharedPtr<Point> Vertex : BaseVertices)
+	{
+		Vertices.Add(Vertex->point + FVector(0, 0, StarterHeight) + FVector(0, 0, ExtrusionHeight));
+	}
+
+	// Индексы треугольников для нижней грани
+	for (int32 i = 1; i < VertexCount - 1; i++)
+	{
+		Triangles.Add(0);
+		Triangles.Add(i);
+		Triangles.Add(i + 1);
+	}
+
+	// Индексы треугольников для верхней грани
+	for (int32 i = 1; i < VertexCount - 1; i++)
+	{
+		Triangles.Add(VertexCount);
+		Triangles.Add(VertexCount + i + 1);
+		Triangles.Add(VertexCount + i);
+	}
+
+	// Боковые стороны
+	for (int32 i = 0; i < VertexCount; i++)
+	{
+		int32 NextIndex = (i + 1) % VertexCount;
+
+		// Первый треугольник боковой стороны
+		Triangles.Add(VertexCount + i);
+		Triangles.Add(NextIndex);
+		Triangles.Add(i);
+
+		// Второй треугольник боковой стороны
+		Triangles.Add(VertexCount + i);
+		Triangles.Add(VertexCount + NextIndex);
+		Triangles.Add(NextIndex);
+	}
+
+	// Создаем нормали (направлены вверх)
+	TArray<FVector> Normals;
+	Normals.Init(FVector(0, 0, 1), Vertices.Num());
+	// Пустые UV-координаты, цвета и тангенты
+	TArray<FVector2D> UVs;
+	TArray<FLinearColor> VertexColors;
+	VertexColors.Init(color, Vertices.Num());
+	TArray<FProcMeshTangent> Tangents;
+
+	// Создаем меш
+	Mesh->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UVs, VertexColors, Tangents, true);
 }
 
 
@@ -1212,12 +1191,6 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 				break;
 			}
 		}
-		// if (b.get_type() == block_type::unknown && !dock_found && is_river)
-		// {
-		// 	dock_found = true;
-		// 	b.set_type(block_type::dock);
-		// 	break;
-		// }
 		if (b.get_type() == block_type::unknown && !royal_found && royal_area == 0)
 		{
 			bool point1 = false;
@@ -1231,9 +1204,6 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 				if (FVector::Distance(p->point, center) < (x_size + y_size) / 10)
 				{
 					point1 = true;
-					// b.set_type(block_type::royal);
-					// royal_area += b.area;
-					// break;
 				}
 				if (p->type == point_type::main_road)
 				{
@@ -1266,10 +1236,41 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 				}
 			}
 		}
-		if (b.get_type() == block_type::royal && royal_area > 100000000)
+		if (b.get_type() == block_type::royal && royal_area > 1000)
 		{
 			royal_found = true;
 		}
+		// if (b.get_type() == block_type::unknown)
+		// {
+		// 	bool is_near_royal = false;
+		// 	bool is_near_dock = false;
+		// 	bool is_near_slums = false;
+		// 	bool is_near_residential = false;
+		// 	for (auto p : b.figure)
+		// 	{
+		// 		if (p->blocks_nearby.Contains(block_type::royal))
+		// 		{
+		// 			is_near_royal = true;
+		// 		}
+		// 		if (p->blocks_nearby.Contains(block_type::dock))
+		// 		{
+		// 			is_near_dock = true;
+		// 		}
+		//
+		// 		if (p->blocks_nearby.Contains(block_type::slums))
+		// 		{
+		// 			is_near_slums = true;
+		// 		}
+		// 		if (p->blocks_nearby.Contains(block_type::residential))
+		// 		{
+		// 			is_near_residential = true;
+		// 		}
+		// 	}
+		// 	if (is_near_royal && !is_near_dock && b.area > 6000)
+		// 	{
+		// 		b.set_type(block_type::luxury);
+		// 	}
+		// }
 	}
 }
 
@@ -1277,13 +1278,18 @@ void AMainTerrain::draw_all()
 {
 	FlushPersistentDebugLines(GetWorld());
 
-	for (auto b : map_borders_array)
-	{
-		for (auto bconn : b->conn)
-		{
-			DrawDebugLine(GetWorld(), bconn->node->get_point(), b->get_point(), FColor::White, true, -1, 0, 20);
-		}
-	}
+	// for (auto b : map_borders_array)
+	// {
+	// 	for (auto bconn : b->conn)
+	// 	{
+	// 		DrawDebugLine(GetWorld(), bconn->node->get_point(), b->get_point(), FColor::White, true, -1, 0, 20);
+	// 	}
+	// }
+	UProceduralMeshComponent* MeshComponent =
+		NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+	MeshComponent->RegisterComponent();
+	MeshComponent->SetMaterial(1, MeshMaterial2);
+	create_mesh(MeshComponent, map_borders_array, -0.1, 0, FLinearColor::White);
 
 	for (auto r : river)
 	{
@@ -1310,7 +1316,7 @@ void AMainTerrain::draw_all()
 		auto figure_we_got = r.figure;
 		for (int i = 1; i < figure_we_got.Num(); i++)
 		{
-			if (r.get_type() == block_type::residential)
+			if (r.get_type() == block_type::luxury)
 			{
 				color = FColor(0, 255, 0);
 				thickness = 5;
@@ -1318,8 +1324,16 @@ void AMainTerrain::draw_all()
 			}
 			else if (r.get_type() == block_type::dock)
 			{
-				color = FColor(0, 0, 255);
-				thickness = 5;
+				UProceduralMeshComponent* MeshComponent2 =
+					NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+				if (MeshComponent2 && MeshMaterial2)
+				{
+					MeshComponent2->RegisterComponent();
+					MeshComponent2->SetMaterial(1, MeshMaterial2);
+					create_mesh(MeshComponent2, r.figure, 0, 500, FLinearColor::Blue);
+				}
+				// color = FColor(0, 0, 255);
+				// thickness = 5;
 				// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
 			}
 			else if (r.get_type() == block_type::royal)
