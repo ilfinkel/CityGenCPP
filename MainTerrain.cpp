@@ -1,6 +1,7 @@
 ﻿#include "MainTerrain.h"
 
 #include "Algo/RemoveIf.h"
+#include "IDetailTreeNode.h"
 
 // #include "Async/AsyncWork.h"
 
@@ -12,8 +13,12 @@ void AMainTerrain::BeginPlay()
 	Super::BeginPlay();
 
 	create_terrain();
-	get_closed_figures(roads);
+	get_closed_figures(roads, figures_array, 100);
 	process_blocks(figures_array);
+	for (auto& b : figures_array)
+	{
+		process_houses(b);
+	}
 	draw_all();
 }
 
@@ -896,73 +901,89 @@ void AMainTerrain::create_mesh(UProceduralMeshComponent* MeshComponent, TArray<T
 	{
 		vertices.Add(BaseVertex->get_node());
 	}
-	create_mesh(MeshComponent, vertices, StarterHeight, ExtrusionHeight, FColor::White);
+	create_mesh(MeshComponent, vertices, StarterHeight, ExtrusionHeight);
 }
 void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices,
-							   float StarterHeight, float ExtrusionHeight, FLinearColor color)
+							   float StarterHeight, float ExtrusionHeight)
 {
+	if (!Mesh)
+	{
+		Mesh = NewObject<UProceduralMeshComponent>(this, TEXT("GeneratedMesh"));
+		Mesh->SetupAttachment(RootComponent);
+		Mesh->RegisterComponent();
+	}
+
+	int32 NumVertices = BaseVertices.Num();
+	if (NumVertices < 3)
+	{
+		return; // Нужно хотя бы 3 вершины для создания полигона
+	}
+
 	TArray<FVector> Vertices;
+	TArray<FVector> Base;
 	TArray<int32> Triangles;
 
-	int32 VertexCount = BaseVertices.Num();
-
-	// Создаем нижнюю грань (плоскую фигуру)
-	for (TSharedPtr<Point> Vertex : BaseVertices)
+	// Добавляем вершины нижней стороны
+	for (auto Vertex : BaseVertices)
 	{
+		Base.Add(Vertex->point + FVector(0, 0, StarterHeight));
 		Vertices.Add(Vertex->point + FVector(0, 0, StarterHeight));
 	}
-	for (TSharedPtr<Point> Vertex : BaseVertices)
+
+	// Добавляем вершины верхней стороны, сдвинутые вверх на ExtrudeHeight
+	for (auto Vertex : BaseVertices)
 	{
 		Vertices.Add(Vertex->point + FVector(0, 0, StarterHeight) + FVector(0, 0, ExtrusionHeight));
 	}
 
-	// Индексы треугольников для нижней грани
-	for (int32 i = 1; i < VertexCount - 1; i++)
+	// Используем триангуляцию для нижней стороны
+	TArray<int32> BaseTriangles;
+	AllGeometry::TriangulatePolygon(Base, BaseTriangles);
+
+	// Добавляем триангуляцию для нижней стороны
+	for (int32 i = 0; i < BaseTriangles.Num(); i += 3)
 	{
-		Triangles.Add(0);
-		Triangles.Add(i);
-		Triangles.Add(i + 1);
+		Triangles.Add(BaseTriangles[i]);
+		Triangles.Add(BaseTriangles[i + 1]);
+		Triangles.Add(BaseTriangles[i + 2]);
 	}
 
-	// Индексы треугольников для верхней грани
-	for (int32 i = 1; i < VertexCount - 1; i++)
+	// Добавляем триангуляцию для верхней стороны (с учетом смещения вершин)
+	int32 Offset = NumVertices;
+	for (int32 i = 0; i < BaseTriangles.Num(); i += 3)
 	{
-		Triangles.Add(VertexCount);
-		Triangles.Add(VertexCount + i + 1);
-		Triangles.Add(VertexCount + i);
+		Triangles.Add(BaseTriangles[i] + Offset);
+		Triangles.Add(BaseTriangles[i + 2] + Offset);
+		Triangles.Add(BaseTriangles[i + 1] + Offset);
 	}
 
-	// Боковые стороны
-	for (int32 i = 0; i < VertexCount; i++)
+	// Создаем боковые стороны
+	for (int32 i = 0; i < NumVertices; i++)
 	{
-		int32 NextIndex = (i + 1) % VertexCount;
+		int32 NextIndex = (i + 1) % NumVertices;
 
-		// Первый треугольник боковой стороны
-		Triangles.Add(VertexCount + i);
+		// Боковая сторона, первый треугольник
 		Triangles.Add(NextIndex);
 		Triangles.Add(i);
+		Triangles.Add(NumVertices + i);
 
-		// Второй треугольник боковой стороны
-		Triangles.Add(VertexCount + i);
-		Triangles.Add(VertexCount + NextIndex);
+		// Боковая сторона, второй треугольник
+		Triangles.Add(NumVertices + NextIndex);
 		Triangles.Add(NextIndex);
+		Triangles.Add(NumVertices + i);
 	}
 
-	// Создаем нормали (направлены вверх)
+	// Создаем пустые массивы для нормалей, UV-координат и тангенсов
 	TArray<FVector> Normals;
-	Normals.Init(FVector(0, 0, 1), Vertices.Num());
-	// Пустые UV-координаты, цвета и тангенты
-	TArray<FVector2D> UVs;
+	TArray<FVector2D> UV0;
 	TArray<FLinearColor> VertexColors;
-	VertexColors.Init(color, Vertices.Num());
 	TArray<FProcMeshTangent> Tangents;
 
 	// Создаем меш
-	Mesh->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UVs, VertexColors, Tangents, true);
+	Mesh->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, true);
 }
 
-
-void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines)
+void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block>& fig_array, int figure_threshold)
 {
 	for (auto l : lines)
 	{
@@ -1005,7 +1026,8 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines)
 				}
 				figure_array->Add(rightest_node->get_node());
 				conn_array.Add(this_conn);
-				if (figure_array->Num() > 100)
+
+				if (figure_array->Num() > figure_threshold)
 				{
 					some_error = true;
 					break;
@@ -1030,77 +1052,22 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines)
 				{
 					conn->figure = figure_array;
 				}
-				figures_array.Add(Block(*figure_array));
+				fig_array.Add(Block(*figure_array));
 			}
 		}
 	}
 }
 void AMainTerrain::get_river_figure()
 {
-	Block river_figure;
-	for (auto l : river)
+	TArray<Block> river_fig_array;
+	get_closed_figures(river, river_fig_array, TNumericLimits<int>::Max());
+	if (river_fig_array.IsEmpty())
 	{
-		for (auto lconn : l->conn)
-		{
-			if (!lconn->figure->IsEmpty() || lconn->not_in_figure)
-			{
-				continue;
-			}
-			TSharedPtr<TArray<TSharedPtr<Point>>> figure_array = MakeShared<TArray<TSharedPtr<Point>>>();
-			TArray<TSharedPtr<Conn>> conn_array;
-			conn_array.Add(lconn);
-			auto first_node = l;
-			auto second_node = lconn->node;
-			figure_array->Add(l->get_node());
-			figure_array->Add(lconn->node->get_node());
-			TSharedPtr<Node> rightest_node;
-			TSharedPtr<Conn> this_conn;
-			bool not_in_figure = false;
-			while (second_node->get_point() != l->get_node()->point)
-			{
-				double smallest_angle = 360;
-				for (int i = 0; i < second_node->conn.Num(); i++)
-				{
-					double angle =
-						AllGeometry::calculate_angle(second_node->conn[i]->node->get_point(), second_node->get_point(),
-													 first_node->get_point(), true);
-					if (angle < smallest_angle && angle > 1)
-					{
-						smallest_angle = angle;
-						rightest_node = second_node->conn[i]->node;
-						this_conn = second_node->conn[i];
-					}
-				}
-				if (smallest_angle == 360)
-				{
-					not_in_figure = true;
-					break;
-				}
-				figure_array->Add(rightest_node->get_node());
-				conn_array.Add(this_conn);
-				first_node = second_node;
-				second_node = rightest_node;
-			}
-			if (not_in_figure)
-			{
-				for (auto conn : conn_array)
-				{
-					conn->not_in_figure = true;
-				}
-			}
-			else
-			{
-				for (auto conn : conn_array)
-				{
-					conn->figure = figure_array;
-				}
-				if (river_figure.figure.Num() < figure_array->Num())
-				{
-					river_figure = Block(*figure_array);
-				}
-			}
-		}
+		return;
 	}
+	river_fig_array.Sort([this](Block Item1, Block Item2) { return Item1.figure.Num() > Item2.figure.Num(); });
+
+	river_figure = river_fig_array[0];
 	river.RemoveAll(
 		[&](TSharedPtr<Node> A)
 		{
@@ -1115,9 +1082,6 @@ void AMainTerrain::get_river_figure()
 			return true;
 		});
 
-
-	// for (auto& r : river)
-	// {
 	river.RemoveAll(
 		[&](TSharedPtr<Node>& r)
 		{
@@ -1174,8 +1138,6 @@ void AMainTerrain::get_river_figure()
 void AMainTerrain::process_blocks(TArray<Block>& blocks)
 {
 	blocks.Sort([this](Block Item1, Block Item2) { return Item1.area > Item2.area; });
-	// blocks.RemoveAt(0);
-	// blocks[0].set_type(block_type::residential);
 	double royal_area = 0;
 	bool royal_found = false;
 	bool dock_found = false;
@@ -1240,37 +1202,70 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 		{
 			royal_found = true;
 		}
-		// if (b.get_type() == block_type::unknown)
+		if (b.get_type() == block_type::unknown)
+		{
+			bool is_near_royal = false;
+			bool is_near_dock = false;
+			bool is_near_slums = false;
+			bool is_near_residential = false;
+			for (auto p : b.figure)
+			{
+				if (p->blocks_nearby.Contains(block_type::royal))
+				{
+					is_near_royal = true;
+				}
+				if (p->blocks_nearby.Contains(block_type::dock))
+				{
+					is_near_dock = true;
+				}
+
+				if (p->blocks_nearby.Contains(block_type::slums))
+				{
+					is_near_slums = true;
+				}
+				if (p->blocks_nearby.Contains(block_type::residential))
+				{
+					is_near_residential = true;
+				}
+			}
+			if (is_near_royal && !is_near_dock && b.area > 6000)
+			{
+				b.set_type(block_type::luxury);
+			}
+		}
+	}
+}
+void AMainTerrain::process_houses(Block& block)
+{
+	if (block.get_type() == block_type::luxury)
+	{
+		// FVector center = FVector(0, 0, 0);
+		// for (auto p : block.figure)
 		// {
-		// 	bool is_near_royal = false;
-		// 	bool is_near_dock = false;
-		// 	bool is_near_slums = false;
-		// 	bool is_near_residential = false;
-		// 	for (auto p : b.figure)
-		// 	{
-		// 		if (p->blocks_nearby.Contains(block_type::royal))
-		// 		{
-		// 			is_near_royal = true;
-		// 		}
-		// 		if (p->blocks_nearby.Contains(block_type::dock))
-		// 		{
-		// 			is_near_dock = true;
-		// 		}
-		//
-		// 		if (p->blocks_nearby.Contains(block_type::slums))
-		// 		{
-		// 			is_near_slums = true;
-		// 		}
-		// 		if (p->blocks_nearby.Contains(block_type::residential))
-		// 		{
-		// 			is_near_residential = true;
-		// 		}
-		// 	}
-		// 	if (is_near_royal && !is_near_dock && b.area > 6000)
-		// 	{
-		// 		b.set_type(block_type::luxury);
-		// 	}
+		// 	center += p->point;
 		// }
+		// center /= block.figure.Num();
+		for (int i = 1; i < block.figure.Num(); i++)
+		{
+			if (block.figure[i - 1]->blocks_nearby.Contains(block_type::royal) &&
+				block.figure[i]->blocks_nearby.Contains(block_type::royal))
+			{
+				auto dist = FVector::Distance(block.figure[i - 1]->point, block.figure[i]->point);
+				if (dist < 40 || dist > 100)
+				{
+					continue;
+				}
+				auto dist2 = 2000 / dist;
+				TSharedPtr<Point> p1 = MakeShared<Point>(block.figure[i - 1]->point);
+				TSharedPtr<Point> p2 = MakeShared<Point>(block.figure[i]->point);
+				TSharedPtr<Point> p3 = MakeShared<Point>(AllGeometry::create_segment_at_angle(
+					block.figure[i - 1]->point, block.figure[i]->point, block.figure[i]->point, 90, dist2));
+				TSharedPtr<Point> p4 = MakeShared<Point>(AllGeometry::create_segment_at_angle(
+					block.figure[i]->point, block.figure[i - 1]->point, block.figure[i - 1]->point, -90, dist2));
+				House house1({p1, p2, p3, p4}, 30);
+				houses_array.Add(house1);
+			}
+		}
 	}
 }
 
@@ -1287,9 +1282,10 @@ void AMainTerrain::draw_all()
 	// }
 	UProceduralMeshComponent* MeshComponent =
 		NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+	MeshComponent->SetupAttachment(RootComponent);
 	MeshComponent->RegisterComponent();
 	MeshComponent->SetMaterial(1, MeshMaterial2);
-	create_mesh(MeshComponent, map_borders_array, -0.1, 0, FLinearColor::White);
+	create_mesh(MeshComponent, map_borders_array, 0.1, 1, FLinearColor::Red);
 
 	for (auto r : river)
 	{
@@ -1309,49 +1305,70 @@ void AMainTerrain::draw_all()
 		}
 	}
 
-	for (auto r : figures_array)
+	// for (auto r : figures_array)
+	// {
+	// 	FColor color;
+	// 	int thickness = 1;
+	// 	auto figure_we_got = r.figure;
+	// 	for (int i = 1; i < figure_we_got.Num(); i++)
+	// 	{
+	// 		if (r.get_type() == block_type::luxury)
+	// 		{
+	// 			color = FColor(0, 255, 0);
+	// 			thickness = 5;
+	// 			// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
+	// 		}
+	// 		else if (r.get_type() == block_type::dock)
+	// 		{
+	// 			UProceduralMeshComponent* MeshComponent2 =
+	// 				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+	// 			MeshComponent2->SetupAttachment(RootComponent);
+	// 			MeshComponent2->RegisterComponent();
+	// 			MeshComponent2->SetMaterial(i, MeshMaterial2);
+	// 			create_mesh(MeshComponent2, r.figure, 10, 500, FLinearColor::White);
+	// 			// WhiteMaterial->BeginDestroy();
+	// 			// color = FColor(0, 0, 255);
+	// 			// thickness = 5;
+	// 			// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
+	// 		}
+	// 		else if (r.get_type() == block_type::royal)
+	// 		{
+	// 			color = FColor(255, 0, 0);
+	// 			thickness = 5;
+	// 		}
+	// 		// else if (r.get_type() == block_type::empty)
+	// 		// {
+	// 		// 	color = FColor(255, 255, 255);
+	// 		// 	thickness = 3;
+	// 		// }
+	// 		else
+	// 		{
+	// 			break;
+	// 		}
+	// 		DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, color, true, -1, 0,
+	// 					  thickness);
+	// 	}
+	// }
 	{
-		FColor color;
-		int thickness = 1;
-		auto figure_we_got = r.figure;
-		for (int i = 1; i < figure_we_got.Num(); i++)
-		{
-			if (r.get_type() == block_type::luxury)
-			{
-				color = FColor(0, 255, 0);
-				thickness = 5;
-				// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
-			}
-			else if (r.get_type() == block_type::dock)
-			{
-				UProceduralMeshComponent* MeshComponent2 =
-					NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
-				if (MeshComponent2 && MeshMaterial2)
-				{
-					MeshComponent2->RegisterComponent();
-					MeshComponent2->SetMaterial(1, MeshMaterial2);
-					create_mesh(MeshComponent2, r.figure, 0, 500, FLinearColor::Blue);
-				}
-				// color = FColor(0, 0, 255);
-				// thickness = 5;
-				// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
-			}
-			else if (r.get_type() == block_type::royal)
-			{
-				color = FColor(255, 0, 0);
-				thickness = 5;
-			}
-			// else if (r.get_type() == block_type::empty)
-			// {
-			// 	color = FColor(255, 255, 255);
-			// 	thickness = 3;
-			// }
-			else
-			{
-				break;
-			}
-			DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, color, true, -1, 0,
-						  thickness);
-		}
+		UProceduralMeshComponent* MeshComponent2 =
+			NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+		MeshComponent2->SetupAttachment(RootComponent);
+		MeshComponent2->RegisterComponent();
+		MeshComponent2->SetMaterial(NULL, MeshMaterial2);
+		int32 N = river_figure.figure.Num();
+		// for (int32 i = 0; i < N / 2; i++)
+		// {
+		// 	river_figure.figure.Swap(i, N - i - 1);
+		// }
+		create_mesh(MeshComponent2, river_figure.figure, 1, 1);
+	}
+	for (auto h : houses_array)
+	{
+		UProceduralMeshComponent* MeshComponent2 =
+			NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+		MeshComponent2->SetupAttachment(RootComponent);
+		MeshComponent2->RegisterComponent();
+		MeshComponent2->SetMaterial(NULL, MeshMaterial2);
+		create_mesh(MeshComponent2, h.house_figure, 0, h.height);
 	}
 }

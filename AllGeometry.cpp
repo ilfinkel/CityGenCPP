@@ -358,7 +358,6 @@ void AllGeometry::change_size(const TArray<TSharedPtr<Point>>& Vertices, float s
 		return;
 	}
 
-	// Шаг 1: Найти центр масс (центроид) многоугольника
 	FVector Centroid(0.0f, 0.0f, 0.0f);
 	for (int32 i = 0; i < NumVertices; ++i)
 	{
@@ -366,14 +365,119 @@ void AllGeometry::change_size(const TArray<TSharedPtr<Point>>& Vertices, float s
 	}
 	Centroid /= static_cast<float>(NumVertices);
 
-	// Шаг 2: Переместить каждую вершину по направлению к центру
 	TArray<FVector> ScaledVertices;
 	for (int32 i = 0; i < NumVertices; ++i)
 	{
-		// Смещаем вершину к центроиду с применением ScaleFactor
 		FVector ScaledVertex = Centroid + (Vertices[i]->point - Centroid) * size_delta;
 		Vertices[i]->point = ScaledVertex;
 	}
+}
+bool AllGeometry::IsConvex(const FVector& Prev, const FVector& Curr, const FVector& Next)
+{
+	// Проверка на выпуклость вершины
+	FVector Edge1 = Curr - Prev;
+	FVector Edge2 = Next - Curr;
+	return FVector::CrossProduct(Edge1, Edge2).Z <= 0;
+}
+bool AllGeometry::IsPointInTriangle(const FVector& P, const FVector& A, const FVector& B, const FVector& C)
+{
+	FVector v0 = C - A;
+	FVector v1 = B - A;
+	FVector v2 = P - A;
 
-	// return ScaledVertices;
+	float dot00 = FVector::DotProduct(v0, v0);
+	float dot01 = FVector::DotProduct(v0, v1);
+	float dot02 = FVector::DotProduct(v0, v2);
+	float dot11 = FVector::DotProduct(v1, v1);
+	float dot12 = FVector::DotProduct(v1, v2);
+
+	float invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+	float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+	float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+	return (u >= 0) && (v >= 0) && (u + v < 1);
+}
+
+bool AllGeometry::IsEar(const TArray<FVector>& Vertices, int32 PrevIndex, int32 CurrIndex, int32 NextIndex,
+						const TArray<int32>& RemainingVertices)
+{
+	FVector A = Vertices[PrevIndex];
+	FVector B = Vertices[CurrIndex];
+	FVector C = Vertices[NextIndex];
+
+	for (int32 Index : RemainingVertices)
+	{
+		if (Index != PrevIndex && Index != CurrIndex && Index != NextIndex)
+		{
+			if (IsPointInTriangle(Vertices[Index], A, B, C))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool AllGeometry::IsPointInsidePolygon(const FVector& Point, const TArray<FVector>& Polygon)
+{
+	int32 Intersections = 0;
+	FVector FarPoint = Point + FVector(0, 10000, 0); // Далеко расположенная точка на линии
+
+	for (int32 i = 0; i < Polygon.Num(); i++)
+	{
+		FVector A = Polygon[i];
+		FVector B = Polygon[(i + 1) % Polygon.Num()];
+
+		if (AllGeometry::is_intersect(Point, FarPoint, A, B, true).IsSet())
+		{
+			Intersections++;
+		}
+	}
+
+	return (Intersections % 2 == 1); // Проверка по четности
+}
+void AllGeometry::TriangulatePolygon(const TArray<FVector>& Vertices, TArray<int32>& Triangles)
+{
+	TArray<int32> RemainingVertices;
+	for (int32 i = 0; i < Vertices.Num(); i++)
+	{
+		RemainingVertices.Add(i);
+	}
+
+	while (RemainingVertices.Num() > 2)
+	{
+		bool EarFound = false;
+
+		for (int32 i = 0; i < RemainingVertices.Num(); i++)
+		{
+			int32 PrevIndex = RemainingVertices[(i + RemainingVertices.Num() - 1) % RemainingVertices.Num()];
+			int32 CurrIndex = RemainingVertices[i];
+			int32 NextIndex = RemainingVertices[(i + 1) % RemainingVertices.Num()];
+
+			// Центр треугольника для проверки
+			FVector TriangleCenter = (Vertices[PrevIndex] + Vertices[CurrIndex] + Vertices[NextIndex]) / 3;
+
+			// Проверка на то, что центр внутри фигуры
+			if (IsPointInsidePolygon(TriangleCenter, Vertices) &&
+				IsEar(Vertices, PrevIndex, CurrIndex, NextIndex, RemainingVertices))
+			{
+				// Добавление треугольника
+				Triangles.Add(PrevIndex);
+				Triangles.Add(CurrIndex);
+				Triangles.Add(NextIndex);
+
+				// Удаляем текущее ухо
+				RemainingVertices.RemoveAt(i);
+				EarFound = true;
+				break;
+			}
+		}
+
+		if (!EarFound)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Failed to find an ear for triangulation."));
+			break;
+		}
+	}
 }

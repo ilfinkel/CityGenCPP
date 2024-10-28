@@ -107,7 +107,12 @@ struct Node
 protected:
 	TSharedPtr<Point> node;
 };
-
+struct House
+{
+	House(TArray<TSharedPtr<Point>> figure_, double height_) : house_figure(figure_), height(height_){};
+	TArray<TSharedPtr<Point>> house_figure;
+	double height;
+};
 struct Block
 {
 	Block()
@@ -118,6 +123,7 @@ struct Block
 	};
 	Block(TArray<TSharedPtr<Point>> figure_);
 	TArray<TSharedPtr<Point>> figure;
+	TArray<House> houses;
 	double area;
 	int main_roads;
 	bool is_river_in;
@@ -156,4 +162,10 @@ public:
 	static double calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork = false);
 	static float get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices);
 	static void change_size(const TArray<TSharedPtr<Point>>& Vertices, float size_delta);
+	static bool IsConvex(const FVector& Prev, const FVector& Curr, const FVector& Next);
+	static bool IsPointInTriangle(const FVector& P, const FVector& A, const FVector& B, const FVector& C);
+	static bool IsEar(const TArray<FVector>& Vertices, int32 PrevIndex, int32 CurrIndex, int32 NextIndex,
+					  const TArray<int32>& RemainingVertices);
+	static bool IsPointInsidePolygon(const FVector& Point, const TArray<FVector>& Polygon);
+	static void TriangulatePolygon(const TArray<FVector>& Polygon, TArray<int32>& Triangles);
 };

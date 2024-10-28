@@ -65,12 +65,13 @@ private:
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float StarterHeight,
 					 float ExtrusionHeight, FLinearColor color);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices, float StarterHeight,
-					 float ExtrusionHeight, FLinearColor color);
+					 float ExtrusionHeight);
 	void shrink_roads();
 	void point_shift(FVector& point);
-	void get_closed_figures(TArray<TSharedPtr<Node>> lines);
+	void get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block>& fig_array, int figure_threshold);
 	void get_river_figure();
 	void process_blocks(TArray<Block>& blocks);
+	void process_houses(Block& block);
 	void draw_all();
 	TArray<TSharedPtr<Node>> river;
 	TArray<TSharedPtr<Node>> guiding_river;
@@ -82,4 +83,6 @@ private:
 	TArray<TSharedPtr<Node>> guididng_roads_array;
 	TArray<WeightedPoint> weighted_points;
 	TArray<Block> figures_array;
+	TArray<House> houses_array;
+	Block river_figure;
 };
