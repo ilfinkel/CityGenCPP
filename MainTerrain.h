@@ -21,9 +21,19 @@ public:
 	// Sets default values for this actor's properties
 	AMainTerrain();
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
-	UMaterialInterface* MeshMaterial;
+	UMaterialInterface* BaseMaterial;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
-	UMaterialInterface* MeshMaterial2;
+	UMaterialInterface* WaterMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+	UMaterialInterface* DocsMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+	UMaterialInterface* RoyalMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+	UMaterialInterface* ResidenceMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+	UMaterialInterface* LuxuryMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+	UMaterialInterface* SlumsMaterial;
 
 	// UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Procedural Mesh")
 	// UProceduralMeshComponent* ProceduralMesh;

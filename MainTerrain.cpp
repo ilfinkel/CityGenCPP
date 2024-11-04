@@ -13,7 +13,7 @@ void AMainTerrain::BeginPlay()
 	Super::BeginPlay();
 
 	create_terrain();
-	get_closed_figures(roads, figures_array, 100);
+	get_closed_figures(roads, figures_array, 200);
 	process_blocks(figures_array);
 	for (auto& b : figures_array)
 	{
@@ -425,7 +425,7 @@ void AMainTerrain::create_guiding_roads()
 	}
 	for (auto& r : roads)
 	{
-		for (int iter = 0; iter < 1000; iter++)
+		for (int iter = 0; iter < 10; iter++)
 		{
 			point_shift(r->get_node()->point);
 		}
@@ -1138,6 +1138,7 @@ void AMainTerrain::get_river_figure()
 void AMainTerrain::process_blocks(TArray<Block>& blocks)
 {
 	blocks.Sort([this](Block Item1, Block Item2) { return Item1.area > Item2.area; });
+
 	double royal_area = 0;
 	bool royal_found = false;
 	bool dock_found = false;
@@ -1234,6 +1235,120 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 			}
 		}
 	}
+	int blocks_count = blocks.Num();
+	int named_blocks = 0;
+	int old_named_blocks = 0;
+	do
+	{
+		old_named_blocks = named_blocks;
+		named_blocks = 0;
+		for (auto& b : blocks)
+		{
+			if (b.get_type() != block_type::unknown)
+			{
+				named_blocks++;
+			}
+			else
+			{
+				TMap<block_type, int32> ElementCount;
+				for (auto& fig : b.figure)
+				{
+					for (auto block : fig->blocks_nearby)
+					{
+						ElementCount.FindOrAdd(block)++;
+					}
+				}
+				int blocks_near = 0;
+				for (auto el : ElementCount)
+				{
+					blocks_near += el.Value;
+				}
+				if (ElementCount.IsEmpty())
+				{
+					continue;
+				}
+				int royal_count = 0;
+				int dock_count = 0;
+				int luxury_count = 0;
+				int residential_count = 0;
+				int slums_count = 0;
+				for (auto el : ElementCount)
+				{
+					switch (el.Key)
+					{
+					case block_type::dock:
+						{
+							dock_count = el.Value;
+							break;
+						}
+					case block_type::royal:
+						{
+							royal_count = el.Value;
+							break;
+						}
+					case block_type::luxury:
+						{
+							luxury_count = el.Value;
+							break;
+						}
+					case block_type::residential:
+						{
+							residential_count = el.Value;
+							break;
+						}
+					case block_type::slums:
+						{
+							slums_count = el.Value;
+							break;
+						}
+					}
+				}
+				if (blocks_near == 0)
+				{
+					continue;
+				}
+				int koeff = (dock_count * (-4) + royal_count * 6 + luxury_count * 3 + slums_count * (-8) +
+							 residential_count * 2) /
+					blocks_near;
+				if (koeff <= -7)
+				{
+					b.set_type(block_type::slums);
+				}
+				else if (koeff >= 0 && koeff < 4)
+				{
+					b.set_type(block_type::residential);
+				}
+				else if (koeff >= 4)
+				{
+					b.set_type(block_type::luxury);
+				}
+				else
+				{
+					double av = (6 + koeff) / 6;
+					int rand_val = rand() % 100;
+					if (rand_val > 85)
+					{
+						b.set_type(block_type::luxury);
+					}
+					else if (rand_val > 50)
+					{
+						b.set_type(block_type::residential);
+					}
+					else
+					{
+						b.set_type(block_type::slums);
+					}
+				}
+			}
+		}
+	}
+	while (named_blocks < blocks_count && old_named_blocks != named_blocks);
+	for (auto& b : blocks)
+	{
+		b.get_self_figure();
+		b.shrink_size(b.self_figure, 3.0f);
+		b.area = AllGeometry::get_poygon_area(b.self_figure);
+	}
 }
 void AMainTerrain::process_houses(Block& block)
 {
@@ -1245,23 +1360,24 @@ void AMainTerrain::process_houses(Block& block)
 		// 	center += p->point;
 		// }
 		// center /= block.figure.Num();
-		for (int i = 1; i < block.figure.Num(); i++)
+		for (int i = 1; i < block.self_figure.Num(); i++)
 		{
-			if (block.figure[i - 1]->blocks_nearby.Contains(block_type::royal) &&
-				block.figure[i]->blocks_nearby.Contains(block_type::royal))
+			if (block.self_figure[i - 1].blocks_nearby.Contains(block_type::royal) &&
+				block.self_figure[i].blocks_nearby.Contains(block_type::royal))
 			{
-				auto dist = FVector::Distance(block.figure[i - 1]->point, block.figure[i]->point);
+				auto dist = FVector::Distance(block.self_figure[i - 1].point, block.self_figure[i].point);
 				if (dist < 40 || dist > 100)
 				{
 					continue;
 				}
 				auto dist2 = 2000 / dist;
-				TSharedPtr<Point> p1 = MakeShared<Point>(block.figure[i - 1]->point);
-				TSharedPtr<Point> p2 = MakeShared<Point>(block.figure[i]->point);
+				TSharedPtr<Point> p1 = MakeShared<Point>(block.self_figure[i - 1].point);
+				TSharedPtr<Point> p2 = MakeShared<Point>(block.self_figure[i].point);
 				TSharedPtr<Point> p3 = MakeShared<Point>(AllGeometry::create_segment_at_angle(
-					block.figure[i - 1]->point, block.figure[i]->point, block.figure[i]->point, 90, dist2));
-				TSharedPtr<Point> p4 = MakeShared<Point>(AllGeometry::create_segment_at_angle(
-					block.figure[i]->point, block.figure[i - 1]->point, block.figure[i - 1]->point, -90, dist2));
+					block.self_figure[i - 1].point, block.self_figure[i].point, block.self_figure[i].point, 90, dist2));
+				TSharedPtr<Point> p4 = MakeShared<Point>(
+					AllGeometry::create_segment_at_angle(block.self_figure[i].point, block.self_figure[i - 1].point,
+														 block.self_figure[i - 1].point, -90, dist2));
 				House house1({p1, p2, p3, p4}, 30);
 				houses_array.Add(house1);
 			}
@@ -1284,8 +1400,8 @@ void AMainTerrain::draw_all()
 		NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
 	MeshComponent->SetupAttachment(RootComponent);
 	MeshComponent->RegisterComponent();
-	MeshComponent->SetMaterial(1, MeshMaterial2);
-	create_mesh(MeshComponent, map_borders_array, 0.1, 1, FLinearColor::Red);
+	MeshComponent->SetMaterial(1, BaseMaterial);
+	create_mesh(MeshComponent, map_borders_array, 0, 1, FLinearColor::Red);
 
 	for (auto r : river)
 	{
@@ -1305,57 +1421,87 @@ void AMainTerrain::draw_all()
 		}
 	}
 
-	// for (auto r : figures_array)
-	// {
-	// 	FColor color;
-	// 	int thickness = 1;
-	// 	auto figure_we_got = r.figure;
-	// 	for (int i = 1; i < figure_we_got.Num(); i++)
-	// 	{
-	// 		if (r.get_type() == block_type::luxury)
-	// 		{
-	// 			color = FColor(0, 255, 0);
-	// 			thickness = 5;
-	// 			// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
-	// 		}
-	// 		else if (r.get_type() == block_type::dock)
-	// 		{
-	// 			UProceduralMeshComponent* MeshComponent2 =
-	// 				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
-	// 			MeshComponent2->SetupAttachment(RootComponent);
-	// 			MeshComponent2->RegisterComponent();
-	// 			MeshComponent2->SetMaterial(i, MeshMaterial2);
-	// 			create_mesh(MeshComponent2, r.figure, 10, 500, FLinearColor::White);
-	// 			// WhiteMaterial->BeginDestroy();
-	// 			// color = FColor(0, 0, 255);
-	// 			// thickness = 5;
-	// 			// DrawDebugSphere(GetWorld(), figure_we_got[i - 1]->point, 4, 8, color, true, -1, 0, 1);
-	// 		}
-	// 		else if (r.get_type() == block_type::royal)
-	// 		{
-	// 			color = FColor(255, 0, 0);
-	// 			thickness = 5;
-	// 		}
-	// 		// else if (r.get_type() == block_type::empty)
-	// 		// {
-	// 		// 	color = FColor(255, 255, 255);
-	// 		// 	thickness = 3;
-	// 		// }
-	// 		else
-	// 		{
-	// 			break;
-	// 		}
-	// 		DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, color, true, -1, 0,
-	// 					  thickness);
-	// 	}
-	// }
+	for (auto r : figures_array)
+	{
+		FColor color;
+		int thickness = 1;
+
+		TArray<TSharedPtr<Point>> figure_to_print;
+		if (!r.self_figure.IsEmpty())
+		{
+			for (auto& p : r.self_figure)
+			{
+				figure_to_print.Add(MakeShared<Point>(p));
+			}
+		}
+		else
+		{
+			continue;
+		}
+
+		if (r.get_type() == block_type::luxury)
+		{
+			UProceduralMeshComponent* MeshComponent2 =
+				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+			MeshComponent2->SetupAttachment(RootComponent);
+			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetMaterial(NULL, LuxuryMaterial);
+			create_mesh(MeshComponent2, figure_to_print, 1, 0.5);
+		}
+		else if (r.get_type() == block_type::dock)
+		{
+			UProceduralMeshComponent* MeshComponent2 =
+				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+			MeshComponent2->SetupAttachment(RootComponent);
+			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetMaterial(NULL, DocsMaterial);
+			create_mesh(MeshComponent2, figure_to_print, 1, 0.5);
+		}
+		else if (r.get_type() == block_type::royal)
+		{
+			UProceduralMeshComponent* MeshComponent2 =
+				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+			MeshComponent2->SetupAttachment(RootComponent);
+			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetMaterial(NULL, RoyalMaterial);
+			create_mesh(MeshComponent2, figure_to_print, 1, 1);
+		}
+		else if (r.get_type() == block_type::slums)
+		{
+			UProceduralMeshComponent* MeshComponent2 =
+				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+			MeshComponent2->SetupAttachment(RootComponent);
+			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetMaterial(NULL, SlumsMaterial);
+			create_mesh(MeshComponent2, figure_to_print, 1, 1);
+		}
+		else if (r.get_type() == block_type::residential)
+		{
+			UProceduralMeshComponent* MeshComponent2 =
+				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+			MeshComponent2->SetupAttachment(RootComponent);
+			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetMaterial(NULL, ResidenceMaterial);
+			create_mesh(MeshComponent2, figure_to_print, 1, 1);
+		}
+		// else if (r.get_type() == block_type::empty)
+		// {
+		// 	color = FColor(255, 255, 255);
+		// 	thickness = 3;
+		// }
+		// DrawDebugLine(GetWorld(), figure_we_got[i - 1]->point, figure_we_got[i]->point, color, true, -1, 0,
+		// 			  thickness);
+	}
 	{
 		UProceduralMeshComponent* MeshComponent2 =
 			NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
 		MeshComponent2->SetupAttachment(RootComponent);
 		MeshComponent2->RegisterComponent();
-		MeshComponent2->SetMaterial(NULL, MeshMaterial2);
-		int32 N = river_figure.figure.Num();
+		MeshComponent2->SetMaterial(NULL, WaterMaterial);
+		auto FirstElement = river_figure.figure[0];
+		river_figure.figure.RemoveAt(0);
+		river_figure.figure.Add(FirstElement);
+		// int32 N = river_figure.figure.Num();
 		// for (int32 i = 0; i < N / 2; i++)
 		// {
 		// 	river_figure.figure.Swap(i, N - i - 1);
@@ -1368,7 +1514,7 @@ void AMainTerrain::draw_all()
 			NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
 		MeshComponent2->SetupAttachment(RootComponent);
 		MeshComponent2->RegisterComponent();
-		MeshComponent2->SetMaterial(NULL, MeshMaterial2);
+		MeshComponent2->SetMaterial(NULL, BaseMaterial);
 		create_mesh(MeshComponent2, h.house_figure, 0, h.height);
 	}
 }

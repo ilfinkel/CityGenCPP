@@ -45,17 +45,17 @@ struct Point
 	bool used = false;
 	TArray<block_type> blocks_nearby;
 
-
-	// friend bool operator==(const Point& Lhs, const Point& RHS)
-	// {
-	// 	return Lhs.point == RHS.point
-	// 		&& Lhs.type == RHS.type;
-	// }
-	//
-	// friend bool operator!=(const Point& Lhs, const Point& RHS)
-	// {
-	// 	return !(Lhs == RHS);
-	// }
+	Point& operator=(const Point& Other)
+	{
+		if (this != &Other)
+		{
+			point = Other.point;
+			type = Other.type;
+			used = Other.used;
+			blocks_nearby = Other.blocks_nearby;
+		}
+		return *this;
+	}
 };
 
 struct Conn
@@ -123,6 +123,7 @@ struct Block
 	};
 	Block(TArray<TSharedPtr<Point>> figure_);
 	TArray<TSharedPtr<Point>> figure;
+	TArray<Point> self_figure;
 	TArray<House> houses;
 	double area;
 	int main_roads;
@@ -130,6 +131,9 @@ struct Block
 	void set_type(block_type type_);
 	block_type get_type() { return type; };
 	bool is_point_in_figure(TSharedPtr<Point> point_);
+	void get_self_figure();
+	void shrink_size(TArray<Point>& Vertices, float size_delta);
+	TOptional<FVector> is_line_intersect(FVector point1, FVector point2);
 
 private:
 	block_type type;
@@ -161,7 +165,7 @@ public:
 										   const FVector& line_beginPoint, double angle_in_degrees, double length);
 	static double calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork = false);
 	static float get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices);
-	static void change_size(const TArray<TSharedPtr<Point>>& Vertices, float size_delta);
+	static float get_poygon_area(const TArray<Point>& Vertices);
 	static bool IsConvex(const FVector& Prev, const FVector& Curr, const FVector& Next);
 	static bool IsPointInTriangle(const FVector& P, const FVector& A, const FVector& B, const FVector& C);
 	static bool IsEar(const TArray<FVector>& Vertices, int32 PrevIndex, int32 CurrIndex, int32 NextIndex,

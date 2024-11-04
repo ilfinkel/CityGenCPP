@@ -3,6 +3,8 @@
 
 #include "AllGeometry.h"
 
+#include "NavMesh/RecastNavMesh.h"
+
 Block::Block(TArray<TSharedPtr<Point>> figure_)
 {
 	// figure = figure_;
@@ -65,6 +67,81 @@ Block::Block(TArray<TSharedPtr<Point>> figure_)
 	// AllGeometry::change_size(figure, 0.7f);
 }
 
+void Block::set_type(block_type type_)
+{
+	type = type_;
+	for (int i = 0; i < figure.Num() - 2; i++)
+	{
+		figure[i]->blocks_nearby.Add(type_);
+	}
+}
+bool Block::is_point_in_figure(TSharedPtr<Point> point_)
+{
+	FVector point = point_->point;
+	FVector point2 = point_->point;
+	point2.Y = y_size;
+	int times_to_hit = 0;
+	for (int i = 1; i < figure.Num(); i++)
+	{
+		if (AllGeometry::is_intersect(point, point2, figure[i - 1]->point, figure[i]->point, true).IsSet())
+		{
+			times_to_hit++;
+		}
+	}
+	if (times_to_hit % 2 == 1)
+	{
+		return true;
+	}
+	return false;
+}
+void Block::get_self_figure()
+{
+	for (auto fig : figure)
+	{
+		Point p = *fig;
+		self_figure.Add(p);
+	}
+}
+
+void Block::shrink_size(TArray<Point>& Vertices, float size_delta)
+{
+	int32 NumVertices = Vertices.Num();
+
+	if (NumVertices < 3 || size_delta <= 0.0f)
+	{
+		return;
+	}
+	TArray<FVector> new_vertices;
+	for (int i = 1; i <= NumVertices; ++i)
+	{
+		double angle = AllGeometry::calculate_angle(Vertices[i - 1].point, Vertices[i % NumVertices].point,
+													Vertices[(i + 1) % NumVertices].point, true);
+		FVector new_point =
+			AllGeometry::create_segment_at_angle(Vertices[i - 1].point, Vertices[i % NumVertices].point,
+												 Vertices[i % NumVertices].point, angle / 2, size_delta);
+
+		new_vertices.Add(new_point);
+	}
+	for (int i = 0; i < NumVertices; ++i)
+	{
+		Vertices[i].point = new_vertices[i];
+	}
+}
+TOptional<FVector> Block::is_line_intersect(FVector point1, FVector point2)
+{
+	int NumVertices = self_figure.Num();
+	for (int i = 1; i <= NumVertices; i++)
+	{
+		TOptional<FVector> intersect = AllGeometry::is_intersect(point1, point2, self_figure[i - 1].point,
+																 self_figure[i % NumVertices].point, false);
+		if (intersect.IsSet())
+		{
+			return intersect;
+		}
+	}
+	return FVector();
+}
+
 TOptional<TSharedPtr<Conn>> Node::get_next_point(TSharedPtr<Point> point)
 {
 	for (auto c : conn)
@@ -103,34 +180,6 @@ void Node::delete_me()
 	}
 }
 
-
-void Block::set_type(block_type type_)
-{
-	type = type_;
-	for (int i = 0; i < figure.Num() - 2; i++)
-	{
-		figure[i]->blocks_nearby.Add(type_);
-	}
-}
-bool Block::is_point_in_figure(TSharedPtr<Point> point_)
-{
-	FVector point = point_->point;
-	FVector point2 = point_->point;
-	point2.Y = y_size;
-	int times_to_hit = 0;
-	for (int i = 1; i < figure.Num(); i++)
-	{
-		if (AllGeometry::is_intersect(point, point2, figure[i - 1]->point, figure[i]->point, true).IsSet())
-		{
-			times_to_hit++;
-		}
-	}
-	if (times_to_hit % 2 == 1)
-	{
-		return true;
-	}
-	return false;
-}
 
 TOptional<FVector> AllGeometry::is_intersect(const FVector& line1_begin, const FVector& line1_end,
 											 const FVector& line2_begin, const FVector& line2_end, bool is_opened)
@@ -342,36 +391,29 @@ float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
 
 	return Area;
 }
-
-
-void AllGeometry::change_size(const TArray<TSharedPtr<Point>>& Vertices, float size_delta)
+float AllGeometry::get_poygon_area(const TArray<Point>& Vertices)
 {
 	int32 NumVertices = Vertices.Num();
-
-	bool IsClosed = Vertices[0]->point == Vertices[NumVertices - 1]->point;
-	if (IsClosed)
+	if (NumVertices < 3)
 	{
-		NumVertices--;
-	}
-	if (NumVertices < 3 || size_delta <= 0.0f)
-	{
-		return;
+		return 0.0f;
 	}
 
-	FVector Centroid(0.0f, 0.0f, 0.0f);
-	for (int32 i = 0; i < NumVertices; ++i)
-	{
-		Centroid += Vertices[i]->point;
-	}
-	Centroid /= static_cast<float>(NumVertices);
+	float Area = 0.0f;
 
-	TArray<FVector> ScaledVertices;
-	for (int32 i = 0; i < NumVertices; ++i)
+	for (int32 i = 1; i <= NumVertices; ++i)
 	{
-		FVector ScaledVertex = Centroid + (Vertices[i]->point - Centroid) * size_delta;
-		Vertices[i]->point = ScaledVertex;
+		const FVector& CurrentVertex = Vertices[i - 1].point;
+		const FVector& NextVertex = Vertices[i % NumVertices].point;
+
+		Area += FMath::Abs(CurrentVertex.X * NextVertex.Y - CurrentVertex.Y * NextVertex.X);
 	}
+
+	Area /= 2;
+
+	return Area;
 }
+
 bool AllGeometry::IsConvex(const FVector& Prev, const FVector& Curr, const FVector& Next)
 {
 	// Проверка на выпуклость вершины
@@ -476,7 +518,6 @@ void AllGeometry::TriangulatePolygon(const TArray<FVector>& Vertices, TArray<int
 
 		if (!EarFound)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Failed to find an ear for triangulation."));
 			break;
 		}
 	}
