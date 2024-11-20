@@ -3,7 +3,6 @@
 
 #include "AllGeometry.h"
 
-#include "NavMesh/RecastNavMesh.h"
 
 Block::Block(TArray<TSharedPtr<Point>> figure_)
 {
@@ -45,26 +44,7 @@ Block::Block(TArray<TSharedPtr<Point>> figure_)
 	{
 		set_type(block_type::empty);
 	}
-	// TSet<block_type> first_node(TSet<block_type>(figure[0]->blocks_nearby));
-	// for (auto a : figure[0]->blocks_nearby)
-	// {
-	// 	first_node.Add(a);
-	// }
-	// for (int i = 1; i < figure.Num(); i++)
-	// {
-	// 	first_node.Intersect(TSet<block_type>(figure[i]->blocks_nearby));
-	// 	if (first_node.IsEmpty())
-	// 	{
-	// 		break;
-	// 	}
-	// }
-	// if (!first_node.IsEmpty())
-	// {
-	// 	set_type(*first_node.CreateConstIterator());
-	// }
-
-
-	// AllGeometry::change_size(figure, 0.7f);
+	get_self_figure();
 }
 
 void Block::set_type(block_type type_)
@@ -75,15 +55,37 @@ void Block::set_type(block_type type_)
 		figure[i]->blocks_nearby.Add(type_);
 	}
 }
-bool Block::is_point_in_figure(TSharedPtr<Point> point_)
+bool Block::is_point_in_self_figure(FVector point_)
 {
-	FVector point = point_->point;
-	FVector point2 = point_->point;
+	FVector point = point_;
+	FVector point2 = point_;
 	point2.Y = y_size;
 	int times_to_hit = 0;
-	for (int i = 1; i < figure.Num(); i++)
+	int fig_num = self_figure.Num();
+	for (int i = 1; i < fig_num; i++)
 	{
-		if (AllGeometry::is_intersect(point, point2, figure[i - 1]->point, figure[i]->point, true).IsSet())
+		if (AllGeometry::is_intersect(point, point2, self_figure[i - 1].point, self_figure[i % fig_num].point, true)
+				.IsSet())
+		{
+			times_to_hit++;
+		}
+	}
+	if (times_to_hit % 2 == 1)
+	{
+		return true;
+	}
+	return false;
+}
+bool Block::is_point_in_figure(FVector point_)
+{
+	FVector point = point_;
+	FVector point2 = point_;
+	point2.Y = y_size;
+	int times_to_hit = 0;
+	int fig_num = figure.Num();
+	for (int i = 1; i <= fig_num; i++)
+	{
+		if (AllGeometry::is_intersect(point, point2, figure[i - 1]->point, figure[i % fig_num]->point, true).IsSet())
 		{
 			times_to_hit++;
 		}
@@ -96,6 +98,10 @@ bool Block::is_point_in_figure(TSharedPtr<Point> point_)
 }
 void Block::get_self_figure()
 {
+	if (!self_figure.IsEmpty())
+	{
+		self_figure.Empty();
+	}
 	for (auto fig : figure)
 	{
 		Point p = *fig;
@@ -106,6 +112,7 @@ void Block::get_self_figure()
 void Block::shrink_size(TArray<Point>& Vertices, float size_delta)
 {
 	int32 NumVertices = Vertices.Num();
+	auto backup_vertices = Vertices;
 
 	if (NumVertices < 3 || size_delta <= 0.0f)
 	{
@@ -116,16 +123,36 @@ void Block::shrink_size(TArray<Point>& Vertices, float size_delta)
 	{
 		double angle = AllGeometry::calculate_angle(Vertices[i - 1].point, Vertices[i % NumVertices].point,
 													Vertices[(i + 1) % NumVertices].point, true);
-		FVector new_point =
-			AllGeometry::create_segment_at_angle(Vertices[i - 1].point, Vertices[i % NumVertices].point,
-												 Vertices[i % NumVertices].point, angle / 2, size_delta);
+		FVector new_point = AllGeometry::create_segment_at_angle(
+			Vertices[i - 1].point, Vertices[i % NumVertices].point, Vertices[i % NumVertices].point, angle / 2,
+			size_delta / FMath::Sin(FMath::DegreesToRadians(angle / 2)));
+		auto intersection = is_line_intersect(Vertices[i % NumVertices].point, new_point);
+		new_point = intersection.IsSet() ? intersection.GetValue() : new_point;
 
 		new_vertices.Add(new_point);
+		// Vertices[i % NumVertices] = new_point;
 	}
-	for (int i = 0; i < NumVertices; ++i)
+	Vertices.Empty();
+	NumVertices = new_vertices.Num();
+	for (int i = 1; i <= new_vertices.Num(); ++i)
 	{
-		Vertices[i].point = new_vertices[i];
+		// if (!is_point_in_figure(new_vertices[i]))
+		// {
+		// 	new_vertices[i] = (new_vertices[i - 1] + new_vertices[(i + 1) % NumVertices]) / 2;
+		// 	// set_type(block_type::unknown);
+		// 	// return;
+		// }
+		// Vertices.Add(new_vertices[i]);
 	}
+	// for (int i = 1; i < Vertices.Num(); ++i)
+	// {
+	// 	if (FVector::Distance(backup_vertices[i - 1].point, backup_vertices[i].point) <
+	// 		FVector::Distance(Vertices[i - 1].point, Vertices[i].point))
+	// 	{
+	// 		set_type(block_type::unknown);
+	// 		return;
+	// 	}
+	// }
 }
 TOptional<FVector> Block::is_line_intersect(FVector point1, FVector point2)
 {
@@ -136,10 +163,60 @@ TOptional<FVector> Block::is_line_intersect(FVector point1, FVector point2)
 																 self_figure[i % NumVertices].point, false);
 		if (intersect.IsSet())
 		{
-			return intersect;
+			return intersect.GetValue();
 		}
 	}
-	return FVector();
+	for (int i = 1; i <= houses.Num(); i++)
+	{
+		for (int j = 1; j < houses[i].house_figure.Num(); j++)
+		{
+			TOptional<FVector> intersect = AllGeometry::is_intersect(point1, point2, houses[i].house_figure[i - 1],
+																	 houses[i].house_figure[i % NumVertices], false);
+			if (intersect.IsSet())
+			{
+				return intersect.GetValue();
+			}
+		}
+	}
+	return TOptional<FVector>();
+}
+bool Block::create_house(TArray<FVector> given_line, double width, double height)
+{
+	if (given_line.Num() < 2)
+	{
+		return false;
+	}
+	TArray<FVector> this_figure;
+	FVector point1 = AllGeometry::create_segment_at_angle(given_line[1], given_line[0], given_line[0], 90, width / 2);
+	// this_figure.Add(point0);
+	this_figure.Add(point1);
+	// House house;
+	for (int i = 1; i < given_line.Num(); i++)
+	{
+		FVector point =
+			AllGeometry::create_segment_at_angle(given_line[i - 1], given_line[i], given_line[i], -90, width / 2);
+		this_figure.Add(point);
+	}
+	FVector point_end =
+		AllGeometry::create_segment_at_angle(this_figure[given_line.Num() - 1], given_line[given_line.Num() - 1],
+											 given_line[given_line.Num() - 1], 0, width / 2);
+	this_figure.Add(point_end);
+	for (int i = given_line.Num() - 1; i > 0; i--)
+	{
+		FVector point =
+			AllGeometry::create_segment_at_angle(given_line[i], given_line[i - 1], given_line[i - 1], -90, width / 2);
+		this_figure.Add(point);
+	}
+	for (auto point : this_figure)
+	{
+		if (!is_point_in_self_figure(point))
+		{
+			return false;
+		}
+	}
+	House house(this_figure, height);
+	houses.Add(house);
+	return true;
 }
 
 TOptional<TSharedPtr<Conn>> Node::get_next_point(TSharedPtr<Point> point)

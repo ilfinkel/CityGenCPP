@@ -72,14 +72,17 @@ private:
 											   TSharedPtr<Node> end_point, bool to_exect_point, point_type type,
 											   double max_length);
 	bool create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
+	void create_mesh(UProceduralMeshComponent* Mesh, TArray<FVector> BaseVertices, float StarterHeight,
+					 float ExtrusionHeight);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float StarterHeight,
-					 float ExtrusionHeight, FLinearColor color);
+					 float ExtrusionHeight);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices, float StarterHeight,
 					 float ExtrusionHeight);
 	void shrink_roads();
 	void point_shift(FVector& point);
 	void get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block>& fig_array, int figure_threshold);
 	void get_river_figure();
+	void smooth_blocks(TArray<Block>& blocks);
 	void process_blocks(TArray<Block>& blocks);
 	void process_houses(Block& block);
 	void draw_all();

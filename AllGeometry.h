@@ -27,19 +27,19 @@ enum block_type
 
 struct WeightedPoint
 {
-	WeightedPoint(const FVector& point_, const double weight_) : point(point_), weight(weight_){};
+	WeightedPoint(const FVector& point_, const double weight_) : point(point_), weight(weight_) {};
 	FVector point;
 	double weight;
 };
 
 struct Point
 {
-	Point(double X, double Y, double Z) : point(FVector(X, Y, Z)){};
+	Point(double X, double Y, double Z) : point(FVector(X, Y, Z)) {};
 
-	Point() : point(FVector(0, 0, 0)){};
+	Point() : point(FVector(0, 0, 0)) {};
 
-	Point(FVector node_) : Point(node_.X, node_.Y, node_.Z){};
-
+	Point(FVector node_) : Point(node_.X, node_.Y, node_.Z) {};
+	~Point() { blocks_nearby.Empty(); }
 	FVector point;
 	point_type type;
 	bool used = false;
@@ -70,7 +70,11 @@ struct Conn
 		figure = MakeShared<TArray<TSharedPtr<Point>>>();
 		not_in_figure = false;
 	}
-
+	~Conn()
+	{
+		figure->Empty();
+		node.Reset();
+	}
 	// Conn(TSharedPtr<Node> node_) :node( node_ ) {}
 	TSharedPtr<Node> node;
 	TSharedPtr<TArray<TSharedPtr<Point>>> figure;
@@ -80,12 +84,12 @@ struct Conn
 
 struct Node
 {
-	Node(double X, double Y, double Z) : node(MakeShared<Point>(FVector(X, Y, Z))){};
+	Node(double X, double Y, double Z) : node(MakeShared<Point>(FVector(X, Y, Z))) {};
 
-	Node() : node(MakeShared<Point>(FVector(0, 0, 0))){};
+	Node() : node(MakeShared<Point>(FVector(0, 0, 0))) {};
 
-	Node(FVector node_) : node(MakeShared<Point>(node_.X, node_.Y, node_.Z)){};
-
+	Node(FVector node_) : node(MakeShared<Point>(node_.X, node_.Y, node_.Z)) {};
+	~Node() { conn.Empty(); }
 	TArray<TSharedPtr<Conn>> conn;
 	void set_point(FVector point_) { node->point = point_; }
 	void set_point_X(double X) { node->point.X = X; }
@@ -109,8 +113,9 @@ protected:
 };
 struct House
 {
-	House(TArray<TSharedPtr<Point>> figure_, double height_) : house_figure(figure_), height(height_){};
-	TArray<TSharedPtr<Point>> house_figure;
+	House(TArray<FVector> figure_, double height_) : house_figure(figure_), height(height_) {};
+	~House() { house_figure.Empty(); }
+	TArray<FVector> house_figure;
 	double height;
 };
 struct Block
@@ -121,6 +126,11 @@ struct Block
 		area = 0;
 		figure = TArray<TSharedPtr<Point>>();
 	};
+	~Block()
+	{
+		figure.Empty();
+		self_figure.Empty();
+	};
 	Block(TArray<TSharedPtr<Point>> figure_);
 	TArray<TSharedPtr<Point>> figure;
 	TArray<Point> self_figure;
@@ -130,10 +140,13 @@ struct Block
 	bool is_river_in;
 	void set_type(block_type type_);
 	block_type get_type() { return type; };
-	bool is_point_in_figure(TSharedPtr<Point> point_);
+	bool is_point_in_self_figure(FVector point_);
+	bool is_point_in_figure(FVector point_);
 	void get_self_figure();
 	void shrink_size(TArray<Point>& Vertices, float size_delta);
 	TOptional<FVector> is_line_intersect(FVector point1, FVector point2);
+
+	bool create_house(TArray<FVector> given_line, double width, double height);
 
 private:
 	block_type type;

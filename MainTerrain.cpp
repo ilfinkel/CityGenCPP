@@ -1,11 +1,14 @@
 ﻿#include "MainTerrain.h"
 
-#include "Algo/RemoveIf.h"
-#include "IDetailTreeNode.h"
 
 // #include "Async/AsyncWork.h"
 
-AMainTerrain::AMainTerrain() { PrimaryActorTick.bCanEverTick = true; }
+AMainTerrain::AMainTerrain() :
+	BaseMaterial(nullptr), WaterMaterial(nullptr), DocsMaterial(nullptr), RoyalMaterial(nullptr),
+	ResidenceMaterial(nullptr), LuxuryMaterial(nullptr), SlumsMaterial(nullptr)
+{
+	PrimaryActorTick.bCanEverTick = true;
+}
 
 void AMainTerrain::BeginPlay()
 {
@@ -14,6 +17,7 @@ void AMainTerrain::BeginPlay()
 
 	create_terrain();
 	get_closed_figures(roads, figures_array, 200);
+	// smooth_blocks(figures_array);
 	process_blocks(figures_array);
 	for (auto& b : figures_array)
 	{
@@ -893,18 +897,8 @@ void AMainTerrain::point_shift(FVector& point)
 	point += bias;
 }
 
-void AMainTerrain::create_mesh(UProceduralMeshComponent* MeshComponent, TArray<TSharedPtr<Node>> BaseVertices,
-							   float StarterHeight, float ExtrusionHeight, FLinearColor color)
-{
-	TArray<TSharedPtr<Point>> vertices;
-	for (auto BaseVertex : BaseVertices)
-	{
-		vertices.Add(BaseVertex->get_node());
-	}
-	create_mesh(MeshComponent, vertices, StarterHeight, ExtrusionHeight);
-}
-void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices,
-							   float StarterHeight, float ExtrusionHeight)
+void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<FVector> BaseVertices, float StarterHeight,
+							   float ExtrusionHeight)
 {
 	if (!Mesh)
 	{
@@ -926,14 +920,14 @@ void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr
 	// Добавляем вершины нижней стороны
 	for (auto Vertex : BaseVertices)
 	{
-		Base.Add(Vertex->point + FVector(0, 0, StarterHeight));
-		Vertices.Add(Vertex->point + FVector(0, 0, StarterHeight));
+		Base.Add(Vertex + FVector(0, 0, StarterHeight));
+		Vertices.Add(Vertex + FVector(0, 0, StarterHeight));
 	}
 
 	// Добавляем вершины верхней стороны, сдвинутые вверх на ExtrudeHeight
 	for (auto Vertex : BaseVertices)
 	{
-		Vertices.Add(Vertex->point + FVector(0, 0, StarterHeight) + FVector(0, 0, ExtrusionHeight));
+		Vertices.Add(Vertex + FVector(0, 0, StarterHeight) + FVector(0, 0, ExtrusionHeight));
 	}
 
 	// Используем триангуляцию для нижней стороны
@@ -983,6 +977,27 @@ void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr
 	Mesh->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, true);
 }
 
+void AMainTerrain::create_mesh(UProceduralMeshComponent* MeshComponent, TArray<TSharedPtr<Node>> BaseVertices,
+							   float StarterHeight, float ExtrusionHeight)
+{
+	TArray<FVector> vertices;
+	for (auto BaseVertex : BaseVertices)
+	{
+		vertices.Add(BaseVertex->get_point());
+	}
+	create_mesh(MeshComponent, vertices, StarterHeight, ExtrusionHeight);
+}
+void AMainTerrain::create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices,
+							   float StarterHeight, float ExtrusionHeight)
+{
+	TArray<FVector> vertices;
+	for (auto BaseVertex : BaseVertices)
+	{
+		vertices.Add(BaseVertex->point);
+	}
+	create_mesh(Mesh, vertices, StarterHeight, ExtrusionHeight);
+}
+
 void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block>& fig_array, int figure_threshold)
 {
 	for (auto l : lines)
@@ -1012,6 +1027,7 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Blo
 					double angle =
 						AllGeometry::calculate_angle(second_node->conn[i]->node->get_point(), second_node->get_point(),
 													 first_node->get_point(), true);
+
 					if (angle < smallest_angle && angle > 1)
 					{
 						smallest_angle = angle;
@@ -1024,6 +1040,10 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Blo
 					not_in_figure = true;
 					break;
 				}
+				// if (smallest_angle > 180)
+				// {
+				// 	second_node->set_point(center_point);
+				// }
 				figure_array->Add(rightest_node->get_node());
 				conn_array.Add(this_conn);
 
@@ -1118,7 +1138,6 @@ void AMainTerrain::get_river_figure()
 		{
 			bool is_key_in = false;
 			bool is_value_in = false;
-			int counter = 0;
 			for (auto river_point : river)
 			{
 				if (A.Key->get_point() == river_point->get_point())
@@ -1135,19 +1154,35 @@ void AMainTerrain::get_river_figure()
 			return is_key_in && is_value_in ? false : true;
 		});
 }
+// void AMainTerrain::smooth_blocks(TArray<Block>& blocks)
+// {
+// 	for (auto& b : blocks)
+// 	{
+// 		int fig_num = b.figure.Num();
+// 		for (int i = 1; i <= fig_num; i++)
+// 		{
+// 			if (AllGeometry::calculate_angle(b.figure[i - 1]->point, b.figure[i % fig_num]->point,
+// 											 b.figure[(i + 1) % fig_num]->point, true) > 180)
+// 			{
+// 				b.figure[i % fig_num]->point = (b.figure[i - 1]->point + b.figure[(i + 1) % fig_num]->point) / 2;
+// 			}
+// 		}
+// 		b.area = AllGeometry::get_poygon_area(b.figure);
+// 	}
+// }
 void AMainTerrain::process_blocks(TArray<Block>& blocks)
 {
 	blocks.Sort([this](Block Item1, Block Item2) { return Item1.area > Item2.area; });
 
 	double royal_area = 0;
 	bool royal_found = false;
-	bool dock_found = false;
+	// bool dock_found = false;
 	for (auto& b : blocks)
 	{
 		bool is_river = false;
 		for (auto r : river)
 		{
-			if (b.is_point_in_figure(r->get_node()))
+			if (b.is_point_in_self_figure(r->get_point()))
 			{
 				is_river = true;
 				b.set_type(block_type::dock);
@@ -1207,8 +1242,8 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 		{
 			bool is_near_royal = false;
 			bool is_near_dock = false;
-			bool is_near_slums = false;
-			bool is_near_residential = false;
+			// bool is_near_slums = false;
+			// bool is_near_residential = false;
 			for (auto p : b.figure)
 			{
 				if (p->blocks_nearby.Contains(block_type::royal))
@@ -1220,14 +1255,14 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 					is_near_dock = true;
 				}
 
-				if (p->blocks_nearby.Contains(block_type::slums))
-				{
-					is_near_slums = true;
-				}
-				if (p->blocks_nearby.Contains(block_type::residential))
-				{
-					is_near_residential = true;
-				}
+				// if (p->blocks_nearby.Contains(block_type::slums))
+				// {
+				// 	is_near_slums = true;
+				// }
+				// if (p->blocks_nearby.Contains(block_type::residential))
+				// {
+				// 	is_near_residential = true;
+				// }
 			}
 			if (is_near_royal && !is_near_dock && b.area > 6000)
 			{
@@ -1237,7 +1272,7 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 	}
 	int blocks_count = blocks.Num();
 	int named_blocks = 0;
-	int old_named_blocks = 0;
+	int old_named_blocks;
 	do
 	{
 		old_named_blocks = named_blocks;
@@ -1301,6 +1336,8 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 							slums_count = el.Value;
 							break;
 						}
+					default:
+						break;
 					}
 				}
 				if (blocks_near == 0)
@@ -1310,7 +1347,8 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 				int koeff = (dock_count * (-4) + royal_count * 6 + luxury_count * 3 + slums_count * (-8) +
 							 residential_count * 2) /
 					blocks_near;
-				if (koeff <= -7)
+
+				if (koeff <= -7 && luxury_count == 0 && royal_count == 0)
 				{
 					b.set_type(block_type::slums);
 				}
@@ -1318,15 +1356,14 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 				{
 					b.set_type(block_type::residential);
 				}
-				else if (koeff >= 4)
+				else if (koeff >= 4 && slums_count != 0 && dock_count != 0)
 				{
 					b.set_type(block_type::luxury);
 				}
 				else
 				{
-					double av = (6 + koeff) / 6;
 					int rand_val = rand() % 100;
-					if (rand_val > 85)
+					if (rand_val > 85 && slums_count != 0 && dock_count != 0)
 					{
 						b.set_type(block_type::luxury);
 					}
@@ -1334,7 +1371,7 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 					{
 						b.set_type(block_type::residential);
 					}
-					else
+					else if (luxury_count == 0 && royal_count == 0)
 					{
 						b.set_type(block_type::slums);
 					}
@@ -1346,41 +1383,57 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 	for (auto& b : blocks)
 	{
 		b.get_self_figure();
-		b.shrink_size(b.self_figure, 3.0f);
+		b.shrink_size(b.self_figure, 5.0f);
 		b.area = AllGeometry::get_poygon_area(b.self_figure);
 	}
 }
 void AMainTerrain::process_houses(Block& block)
 {
+	FVector block_center(0, 0, 0);
+	for (auto p : block.figure)
+	{
+		block_center += p->point;
+	}
+	block_center /= block.self_figure.Num();
 	if (block.get_type() == block_type::luxury)
 	{
-		// FVector center = FVector(0, 0, 0);
-		// for (auto p : block.figure)
-		// {
-		// 	center += p->point;
-		// }
-		// center /= block.figure.Num();
+		if (!block.is_point_in_self_figure(block_center))
+		{
+			return;
+		}
 		for (int i = 1; i < block.self_figure.Num(); i++)
 		{
 			if (block.self_figure[i - 1].blocks_nearby.Contains(block_type::royal) &&
 				block.self_figure[i].blocks_nearby.Contains(block_type::royal))
 			{
-				auto dist = FVector::Distance(block.self_figure[i - 1].point, block.self_figure[i].point);
-				if (dist < 40 || dist > 100)
+				FVector point1 = AllGeometry::create_segment_at_angle(block.self_figure[i - 1].point,
+																	  block.self_figure[i].point, block_center, 0, 40);
+				FVector point2 = AllGeometry::create_segment_at_angle(
+					block.self_figure[i - 1].point, block.self_figure[i].point, block_center, 180, 40);
+				TArray<FVector> figure{point1, point2};
+				if (block.create_house(figure, 40, 30))
 				{
-					continue;
+					break;
 				}
-				auto dist2 = 2000 / dist;
-				TSharedPtr<Point> p1 = MakeShared<Point>(block.self_figure[i - 1].point);
-				TSharedPtr<Point> p2 = MakeShared<Point>(block.self_figure[i].point);
-				TSharedPtr<Point> p3 = MakeShared<Point>(AllGeometry::create_segment_at_angle(
-					block.self_figure[i - 1].point, block.self_figure[i].point, block.self_figure[i].point, 90, dist2));
-				TSharedPtr<Point> p4 = MakeShared<Point>(
-					AllGeometry::create_segment_at_angle(block.self_figure[i].point, block.self_figure[i - 1].point,
-														 block.self_figure[i - 1].point, -90, dist2));
-				House house1({p1, p2, p3, p4}, 30);
-				houses_array.Add(house1);
 			}
+		}
+	}
+	else if (block.get_type() == block_type::residential)
+	{
+		for (int i = 3; i < block.self_figure.Num(); i += 2)
+		{
+			auto angle2 = AllGeometry::calculate_angle(block.self_figure[i - 2].point, block.self_figure[i - 1].point,
+													   block.self_figure[i].point, true);
+			auto angle1 = AllGeometry::calculate_angle(block.self_figure[i - 3].point, block.self_figure[i - 2].point,
+													   block.self_figure[i - 1].point, true);
+			FVector point1 =
+				AllGeometry::create_segment_at_angle(block.self_figure[i - 2].point, block.self_figure[i - 1].point,
+													 block.self_figure[i - 1].point, angle1 / 2, 15);
+			FVector point2 =
+				AllGeometry::create_segment_at_angle(block.self_figure[i - 3].point, block.self_figure[i - 2].point,
+													 block.self_figure[i - 2].point, angle2 / 2, 15);
+			TArray<FVector> figure{point1, point2};
+			block.create_house(figure, 10, 10);
 		}
 	}
 }
@@ -1401,7 +1454,7 @@ void AMainTerrain::draw_all()
 	MeshComponent->SetupAttachment(RootComponent);
 	MeshComponent->RegisterComponent();
 	MeshComponent->SetMaterial(1, BaseMaterial);
-	create_mesh(MeshComponent, map_borders_array, 0, 1, FLinearColor::Red);
+	create_mesh(MeshComponent, map_borders_array, 0, 1);
 
 	for (auto r : river)
 	{
@@ -1423,8 +1476,8 @@ void AMainTerrain::draw_all()
 
 	for (auto r : figures_array)
 	{
-		FColor color;
-		int thickness = 1;
+		// FColor color;
+		// int thickness = 1;
 
 		TArray<TSharedPtr<Point>> figure_to_print;
 		if (!r.self_figure.IsEmpty())
@@ -1484,6 +1537,15 @@ void AMainTerrain::draw_all()
 			MeshComponent2->SetMaterial(NULL, ResidenceMaterial);
 			create_mesh(MeshComponent2, figure_to_print, 1, 1);
 		}
+		for (auto& p : r.houses)
+		{
+			UProceduralMeshComponent* MeshComponent2 =
+				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+			MeshComponent2->SetupAttachment(RootComponent);
+			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetMaterial(NULL, BaseMaterial);
+			create_mesh(MeshComponent2, p.house_figure, 0, p.height);
+		}
 		// else if (r.get_type() == block_type::empty)
 		// {
 		// 	color = FColor(255, 255, 255);
@@ -1507,14 +1569,5 @@ void AMainTerrain::draw_all()
 		// 	river_figure.figure.Swap(i, N - i - 1);
 		// }
 		create_mesh(MeshComponent2, river_figure.figure, 1, 1);
-	}
-	for (auto h : houses_array)
-	{
-		UProceduralMeshComponent* MeshComponent2 =
-			NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
-		MeshComponent2->SetupAttachment(RootComponent);
-		MeshComponent2->RegisterComponent();
-		MeshComponent2->SetMaterial(NULL, BaseMaterial);
-		create_mesh(MeshComponent2, h.house_figure, 0, h.height);
 	}
 }
