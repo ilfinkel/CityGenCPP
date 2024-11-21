@@ -57,44 +57,21 @@ void Block::set_type(block_type type_)
 }
 bool Block::is_point_in_self_figure(FVector point_)
 {
-	FVector point = point_;
-	FVector point2 = point_;
-	point2.Y = y_size;
-	int times_to_hit = 0;
-	int fig_num = self_figure.Num();
-	for (int i = 1; i < fig_num; i++)
+	TArray<FVector> figure_to_check;
+	for (auto& a : self_figure)
 	{
-		if (AllGeometry::is_intersect(point, point2, self_figure[i - 1].point, self_figure[i % fig_num].point, true)
-				.IsSet())
-		{
-			times_to_hit++;
-		}
+		figure_to_check.Add(a.point);
 	}
-	if (times_to_hit % 2 == 1)
-	{
-		return true;
-	}
-	return false;
+	return AllGeometry::is_point_in_figure(point_, figure_to_check);
 }
 bool Block::is_point_in_figure(FVector point_)
 {
-	FVector point = point_;
-	FVector point2 = point_;
-	point2.Y = y_size;
-	int times_to_hit = 0;
-	int fig_num = figure.Num();
-	for (int i = 1; i <= fig_num; i++)
+	TArray<FVector> figure_to_check;
+	for (auto& a : figure)
 	{
-		if (AllGeometry::is_intersect(point, point2, figure[i - 1]->point, figure[i % fig_num]->point, true).IsSet())
-		{
-			times_to_hit++;
-		}
+		figure_to_check.Add(a->point);
 	}
-	if (times_to_hit % 2 == 1)
-	{
-		return true;
-	}
-	return false;
+	return AllGeometry::is_point_in_figure(point_, figure_to_check);
 }
 void Block::get_self_figure()
 {
@@ -109,14 +86,14 @@ void Block::get_self_figure()
 	}
 }
 
-void Block::shrink_size(TArray<Point>& Vertices, float size_delta)
+bool Block::shrink_size(TArray<Point>& Vertices, float size_delta)
 {
 	int32 NumVertices = Vertices.Num();
 	auto backup_vertices = Vertices;
 
 	if (NumVertices < 3 || size_delta <= 0.0f)
 	{
-		return;
+		return false;
 	}
 	TArray<FVector> new_vertices;
 	for (int i = 1; i <= NumVertices; ++i)
@@ -136,13 +113,17 @@ void Block::shrink_size(TArray<Point>& Vertices, float size_delta)
 	NumVertices = new_vertices.Num();
 	for (int i = 1; i <= new_vertices.Num(); ++i)
 	{
-		// if (!is_point_in_figure(new_vertices[i]))
-		// {
-		// 	new_vertices[i] = (new_vertices[i - 1] + new_vertices[(i + 1) % NumVertices]) / 2;
-		// 	// set_type(block_type::unknown);
-		// 	// return;
-		// }
-		// Vertices.Add(new_vertices[i]);
+		if (!is_point_in_figure(new_vertices[i % NumVertices]))
+		{
+			new_vertices[i % NumVertices] = (new_vertices[i - 1] + new_vertices[(i + 1) % NumVertices]) / 2;
+			if (!is_point_in_figure(new_vertices[i % NumVertices]))
+			{
+				return false;
+			}
+			// set_type(block_type::unknown);
+			// return;
+		}
+		Vertices.Add(new_vertices[i % NumVertices]);
 	}
 	// for (int i = 1; i < Vertices.Num(); ++i)
 	// {
@@ -153,6 +134,7 @@ void Block::shrink_size(TArray<Point>& Vertices, float size_delta)
 	// 		return;
 	// 	}
 	// }
+	return true;
 }
 TOptional<FVector> Block::is_line_intersect(FVector point1, FVector point2)
 {
@@ -189,30 +171,39 @@ bool Block::create_house(TArray<FVector> given_line, double width, double height
 	TArray<FVector> this_figure;
 	FVector point1 = AllGeometry::create_segment_at_angle(given_line[1], given_line[0], given_line[0], 90, width / 2);
 	// this_figure.Add(point0);
+	if (!is_point_in_self_figure(point1))
+	{
+		return false;
+	}
 	this_figure.Add(point1);
 	// House house;
 	for (int i = 1; i < given_line.Num(); i++)
 	{
 		FVector point =
 			AllGeometry::create_segment_at_angle(given_line[i - 1], given_line[i], given_line[i], -90, width / 2);
-		this_figure.Add(point);
-	}
-	FVector point_end =
-		AllGeometry::create_segment_at_angle(this_figure[given_line.Num() - 1], given_line[given_line.Num() - 1],
-											 given_line[given_line.Num() - 1], 0, width / 2);
-	this_figure.Add(point_end);
-	for (int i = given_line.Num() - 1; i > 0; i--)
-	{
-		FVector point =
-			AllGeometry::create_segment_at_angle(given_line[i], given_line[i - 1], given_line[i - 1], -90, width / 2);
-		this_figure.Add(point);
-	}
-	for (auto point : this_figure)
-	{
 		if (!is_point_in_self_figure(point))
 		{
 			return false;
 		}
+		this_figure.Add(point);
+	}
+	FVector point2 =
+		AllGeometry::create_segment_at_angle(this_figure[given_line.Num() - 1], given_line[given_line.Num() - 1],
+											 given_line[given_line.Num() - 1], 0, width / 2);
+	if (!is_point_in_self_figure(point2))
+	{
+		return false;
+	}
+	this_figure.Add(point2);
+	for (int i = given_line.Num() - 1; i > 0; i--)
+	{
+		FVector point =
+			AllGeometry::create_segment_at_angle(given_line[i], given_line[i - 1], given_line[i - 1], -90, width / 2);
+		if (!is_point_in_self_figure(point))
+		{
+			return false;
+		}
+		this_figure.Add(point);
 	}
 	House house(this_figure, height);
 	houses.Add(house);
@@ -598,4 +589,24 @@ void AllGeometry::TriangulatePolygon(const TArray<FVector>& Vertices, TArray<int
 			break;
 		}
 	}
+}
+bool AllGeometry::is_point_in_figure(FVector& point_, TArray<FVector>& figure)
+{
+	FVector point = point_;
+	FVector point2 = point_;
+	point2.Y = y_size;
+	int times_to_hit = 0;
+	int fig_num = figure.Num();
+	for (int i = 1; i < fig_num; i++)
+	{
+		if (AllGeometry::is_intersect(point, point2, figure[i - 1], figure[i % fig_num], false).IsSet())
+		{
+			times_to_hit++;
+		}
+	}
+	if (times_to_hit % 2 == 1)
+	{
+		return true;
+	}
+	return false;
 }

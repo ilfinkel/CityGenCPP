@@ -1021,9 +1021,11 @@ void AMainTerrain::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Blo
 			bool not_in_figure = false;
 			while (second_node->get_point() != l->get_node()->point)
 			{
+				FVector center_point;
 				double smallest_angle = 360;
 				for (int i = 0; i < second_node->conn.Num(); i++)
 				{
+					center_point = (second_node->conn[i]->node->get_point() + first_node->get_point()) / 2;
 					double angle =
 						AllGeometry::calculate_angle(second_node->conn[i]->node->get_point(), second_node->get_point(),
 													 first_node->get_point(), true);
@@ -1380,10 +1382,14 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 		}
 	}
 	while (named_blocks < blocks_count && old_named_blocks != named_blocks);
+	int wrong_blocks = 0;
 	for (auto& b : blocks)
 	{
 		b.get_self_figure();
-		b.shrink_size(b.self_figure, 5.0f);
+		if (!b.shrink_size(b.self_figure, 5.0f))
+		{
+			wrong_blocks++;
+		}
 		b.area = AllGeometry::get_poygon_area(b.self_figure);
 	}
 }

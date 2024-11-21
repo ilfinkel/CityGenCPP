@@ -143,7 +143,7 @@ struct Block
 	bool is_point_in_self_figure(FVector point_);
 	bool is_point_in_figure(FVector point_);
 	void get_self_figure();
-	void shrink_size(TArray<Point>& Vertices, float size_delta);
+	bool shrink_size(TArray<Point>& Vertices, float size_delta);
 	TOptional<FVector> is_line_intersect(FVector point1, FVector point2);
 
 	bool create_house(TArray<FVector> given_line, double width, double height);
@@ -185,4 +185,5 @@ public:
 					  const TArray<int32>& RemainingVertices);
 	static bool IsPointInsidePolygon(const FVector& Point, const TArray<FVector>& Polygon);
 	static void TriangulatePolygon(const TArray<FVector>& Polygon, TArray<int32>& Triangles);
+	static bool is_point_in_figure(FVector& point_, TArray<FVector>& figure);
 };
