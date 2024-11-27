@@ -50,6 +50,7 @@ public:
 	UFUNCTION()
 	void OnMouseOutSlums(UPrimitiveComponent* Component);
 
+
 	// UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Procedural Mesh")
 	// UProceduralMeshComponent* ProceduralMesh;
 	FVector center = FVector(x_size / 2, y_size / 2, 0);
@@ -62,6 +63,7 @@ public:
 	double max_road_length = 95;
 	double river_road_distance = 60; //((x_size + y_size) / 2) / 20;
 
+	UProceduralMeshComponent* BaseComponent;
 
 protected:
 	// Called when the game starts or when spawned
@@ -100,6 +102,7 @@ private:
 	void process_blocks(TArray<Block>& blocks);
 	void process_houses(Block& block);
 	void draw_all();
+	void get_cursor_hit_location();
 	TArray<TSharedPtr<Node>> river;
 	TArray<TSharedPtr<Node>> guiding_river;
 	TArray<TTuple<TSharedPtr<Node>, TSharedPtr<Node>>> bridges;

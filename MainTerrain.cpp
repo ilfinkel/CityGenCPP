@@ -79,7 +79,9 @@ void AMainTerrain::BeginPlay()
 // Called every frame
 void AMainTerrain::Tick(float DeltaTime)
 {
-	// Super::Tick(DeltaTime);
+	Super::Tick(DeltaTime);
+	get_cursor_hit_location();
+
 	//// create_usual_roads();
 	// draw_all();
 }
@@ -1526,12 +1528,20 @@ void AMainTerrain::draw_all()
 	// 		DrawDebugLine(GetWorld(), bconn->node->get_point(), b->get_point(), FColor::White, true, -1, 0, 20);
 	// 	}
 	// }
-	UProceduralMeshComponent* MeshComponent =
-		NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
-	MeshComponent->SetupAttachment(RootComponent);
-	MeshComponent->RegisterComponent();
-	MeshComponent->SetMaterial(1, BaseMaterial);
-	create_mesh(MeshComponent, map_borders_array, 0, 1);
+	BaseComponent = NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+	BaseComponent->SetupAttachment(RootComponent);
+	BaseComponent->RegisterComponent();
+
+	// Включаем коллизию
+	BaseComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	BaseComponent->SetCollisionResponseToAllChannels(ECR_Block);
+
+	// Задаем сложную коллизию (на основе самих треугольников)
+	BaseComponent->bUseComplexAsSimpleCollision = true;
+
+	// Создаем физическое тело для коллизии
+	create_mesh(BaseComponent, map_borders_array, 0, 1);
+
 
 	for (auto r : river)
 	{
@@ -1702,19 +1712,73 @@ void AMainTerrain::draw_all()
 		// 			  thickness);
 	}
 	{
-		UProceduralMeshComponent* MeshComponent2 =
-			NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
-		MeshComponent2->SetupAttachment(RootComponent);
-		MeshComponent2->RegisterComponent();
-		MeshComponent2->SetMaterial(NULL, WaterMaterial);
-		auto FirstElement = river_figure.figure[0];
-		river_figure.figure.RemoveAt(0);
-		river_figure.figure.Add(FirstElement);
-		// int32 N = river_figure.figure.Num();
-		// for (int32 i = 0; i < N / 2; i++)
-		// {
-		// 	river_figure.figure.Swap(i, N - i - 1);
-		// }
-		create_mesh(MeshComponent2, river_figure.figure, 1, 0.5);
+		if (!river_figure.figure.IsEmpty())
+		{
+			UProceduralMeshComponent* MeshComponent2 =
+				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
+			MeshComponent2->SetupAttachment(RootComponent);
+			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetMaterial(NULL, WaterMaterial);
+			auto FirstElement = river_figure.figure[0];
+			river_figure.figure.RemoveAt(0);
+			river_figure.figure.Add(FirstElement);
+			// int32 N = river_figure.figure.Num();
+			// for (int32 i = 0; i < N / 2; i++)
+			// {
+			// 	river_figure.figure.Swap(i, N - i - 1);
+			// }
+			create_mesh(MeshComponent2, river_figure.figure, 1, 0.5);
+		}
+	}
+}
+void AMainTerrain::get_cursor_hit_location()
+{
+	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	// Получаем координаты мыши на экране
+	float MouseX, MouseY;
+	if (PlayerController->GetMousePosition(MouseX, MouseY))
+	{
+		FVector WorldLocation, WorldDirection;
+
+		// Преобразуем координаты мыши в направление в мире
+		if (PlayerController->DeprojectScreenPositionToWorld(MouseX, MouseY, WorldLocation, WorldDirection))
+		{
+			FVector CameraLocation = PlayerController->PlayerCameraManager->GetCameraLocation();
+			FVector CameraForwardVector = PlayerController->PlayerCameraManager->GetCameraRotation().Vector();
+			FVector Start = CameraLocation; // Начальная точка линии (например, от камеры)
+			FVector End = Start + (CameraForwardVector * 10000.0f); // Конечная точка линии
+
+			// FVector HitLocation = HitResult.Location;
+			// FVector HitWatch = HitLocation;
+			// DrawDebugString(GetWorld(), HitWatch, HitLocation.ToString(), nullptr, FColor::Red, 50.0f,
+			// 				true);
+			FHitResult HitResult;
+			FCollisionQueryParams Params;
+			Params.AddIgnoredActor(this); // Игнорировать самого себя
+
+			bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End,
+															 ECC_Visibility // Канал трассировки
+			);
+
+			if (bHit && HitResult.Component == BaseComponent)
+			{
+				// Логируем координаты попадания
+				FVector HitLocation = HitResult.Location;
+				FVector HitWatch = HitLocation;
+				HitWatch.Z += 200;
+				// UE_LOG(LogTemp, Warning, TEXT("Hit Location: %s"), *HitLocation.ToString());
+				if (GEngine)
+				{
+					FString Message = FString::Printf(TEXT("Hit Location: %s"), *HitLocation.ToString());
+					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, Message);
+					// DrawDebugString(GetWorld(), HitWatch, HitLocation.ToString(), nullptr, FColor::Red, 1.0f, true);
+				}
+			}
+		}
 	}
 }
