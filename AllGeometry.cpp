@@ -106,23 +106,40 @@ bool Block::shrink_size(TArray<Point>& Vertices, float size_delta)
 		auto intersection = is_line_intersect(Vertices[i % NumVertices].point, new_point);
 		new_point = intersection.IsSet() ? intersection.GetValue() : new_point;
 
-		new_vertices.Add(new_point);
+		bool is_in = true;
+		for (int j = 1; j <= NumVertices; ++j)
+		{
+			if (AllGeometry::point_to_seg_distance(Vertices[j - 1].point, Vertices[j % NumVertices].point, new_point) <
+				size_delta)
+			{
+				is_in = false;
+				break;
+			}
+		}
+		if (is_in)
+		{
+			new_vertices.Add(new_point);
+		}
 		// Vertices[i % NumVertices] = new_point;
 	}
 	Vertices.Empty();
 	NumVertices = new_vertices.Num();
+	if (NumVertices < 3)
+	{
+		return false;
+	}
 	for (int i = 1; i <= new_vertices.Num(); ++i)
 	{
-		if (!is_point_in_figure(new_vertices[i % NumVertices]))
-		{
-			new_vertices[i % NumVertices] = (new_vertices[i - 1] + new_vertices[(i + 1) % NumVertices]) / 2;
-			if (!is_point_in_figure(new_vertices[i % NumVertices]))
-			{
-				return false;
-			}
-			// set_type(block_type::unknown);
-			// return;
-		}
+		// if (!is_point_in_figure(new_vertices[i % NumVertices]))
+		// {
+		// 	new_vertices[i % NumVertices] = (new_vertices[i - 1] + new_vertices[(i + 1) % NumVertices]) / 2;
+		// 	if (!is_point_in_figure(new_vertices[i % NumVertices]))
+		// 	{
+		// 		return false;
+		// 	}
+		// 	// set_type(block_type::unknown);
+		// 	// return;
+		// }
 		Vertices.Add(new_vertices[i % NumVertices]);
 	}
 	// for (int i = 1; i < Vertices.Num(); ++i)
@@ -148,12 +165,13 @@ TOptional<FVector> Block::is_line_intersect(FVector point1, FVector point2)
 			return intersect.GetValue();
 		}
 	}
-	for (int i = 1; i <= houses.Num(); i++)
+	for (int i = 0; i < houses.Num(); i++)
 	{
-		for (int j = 1; j < houses[i].house_figure.Num(); j++)
+		int house_figure_num = houses[i].house_figure.Num();
+		for (int j = 1; j <= house_figure_num; j++)
 		{
-			TOptional<FVector> intersect = AllGeometry::is_intersect(point1, point2, houses[i].house_figure[i - 1],
-																	 houses[i].house_figure[i % NumVertices], false);
+			TOptional<FVector> intersect = AllGeometry::is_intersect(
+				point1, point2, houses[i].house_figure[j - 1], houses[i].house_figure[j % house_figure_num], false);
 			if (intersect.IsSet())
 			{
 				return intersect.GetValue();
@@ -204,6 +222,14 @@ bool Block::create_house(TArray<FVector> given_line, double width, double height
 			return false;
 		}
 		this_figure.Add(point);
+	}
+	int fig_num = this_figure.Num();
+	for (int i = 1; i <= fig_num; i++)
+	{
+		if (is_line_intersect(this_figure[i - 1], this_figure[i % fig_num]).IsSet())
+		{
+			return false;
+		}
 	}
 	House house(this_figure, height);
 	houses.Add(house);
@@ -609,4 +635,18 @@ bool AllGeometry::is_point_in_figure(FVector& point_, TArray<FVector>& figure)
 		return true;
 	}
 	return false;
+}
+float AllGeometry::point_to_seg_distance(const FVector& SegmentStart, const FVector& SegmentEnd, const FVector& Point)
+{
+	FVector SegmentVector = SegmentEnd - SegmentStart;
+	FVector PointVector = Point - SegmentStart;
+
+	float SegmentLengthSquared = SegmentVector.SizeSquared();
+	if (SegmentLengthSquared == 0.0f)
+	{
+		return FVector::Dist(SegmentStart, Point);
+	}
+
+	float t = FMath::Clamp(FVector::DotProduct(PointVector, SegmentVector) / SegmentLengthSquared, 0.0f, 1.0f);
+	return FVector::Dist(SegmentStart + t * SegmentVector, Point);
 }

@@ -5,6 +5,7 @@
 #include <random>
 
 #include "Algo/Reverse.h"
+#include "Components/PrimitiveComponent.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "HAL/Runnable.h"
@@ -34,6 +35,20 @@ public:
 	UMaterialInterface* LuxuryMaterial;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
 	UMaterialInterface* SlumsMaterial;
+
+
+	UFUNCTION()
+	void OnMouseOver(UPrimitiveComponent* Component);
+	UFUNCTION()
+	void OnMouseOutRoyal(UPrimitiveComponent* Component);
+	UFUNCTION()
+	void OnMouseOutDock(UPrimitiveComponent* Component);
+	UFUNCTION()
+	void OnMouseOutLuxury(UPrimitiveComponent* Component);
+	UFUNCTION()
+	void OnMouseOutResidential(UPrimitiveComponent* Component);
+	UFUNCTION()
+	void OnMouseOutSlums(UPrimitiveComponent* Component);
 
 	// UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Procedural Mesh")
 	// UProceduralMeshComponent* ProceduralMesh;
@@ -82,7 +97,6 @@ private:
 	void point_shift(FVector& point);
 	void get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block>& fig_array, int figure_threshold);
 	void get_river_figure();
-	void smooth_blocks(TArray<Block>& blocks);
 	void process_blocks(TArray<Block>& blocks);
 	void process_houses(Block& block);
 	void draw_all();

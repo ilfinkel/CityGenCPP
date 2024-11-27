@@ -9,9 +9,59 @@ AMainTerrain::AMainTerrain() :
 {
 	PrimaryActorTick.bCanEverTick = true;
 }
+void AMainTerrain::OnMouseOver(UPrimitiveComponent* Component)
+{
+	if (BaseMaterial)
+	{
+		Component->SetMaterial(0, BaseMaterial);
+	}
+}
+void AMainTerrain::OnMouseOutRoyal(UPrimitiveComponent* Component)
+{
+	if (Component && RoyalMaterial)
+	{
+		Component->SetMaterial(0, RoyalMaterial);
+	}
+}
+void AMainTerrain::OnMouseOutDock(UPrimitiveComponent* Component)
+{
+	if (Component && DocsMaterial)
+	{
+		Component->SetMaterial(0, DocsMaterial);
+	}
+}
+void AMainTerrain::OnMouseOutLuxury(UPrimitiveComponent* Component)
+{
+	if (Component && LuxuryMaterial)
+	{
+		Component->SetMaterial(0, LuxuryMaterial);
+	}
+}
+void AMainTerrain::OnMouseOutResidential(UPrimitiveComponent* Component)
+{
+	if (Component && ResidenceMaterial)
+	{
+		Component->SetMaterial(0, ResidenceMaterial);
+	}
+}
+void AMainTerrain::OnMouseOutSlums(UPrimitiveComponent* Component)
+{
+	if (Component && SlumsMaterial)
+	{
+		Component->SetMaterial(0, SlumsMaterial);
+	}
+}
 
 void AMainTerrain::BeginPlay()
 {
+	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	if (PlayerController)
+	{
+		PlayerController->bShowMouseCursor = true; // Показываем курсор
+		PlayerController->bEnableClickEvents = true; // Включаем обработку событий кликов
+		PlayerController->bEnableMouseOverEvents = true; // Включаем обработку событий наведения
+	}
+
 	PrimaryActorTick.bCanEverTick = true;
 	Super::BeginPlay();
 
@@ -651,9 +701,9 @@ void AMainTerrain::create_usual_roads()
 	{
 		if (!road_node->is_used())
 		{
-			forward = 3;
-			left = 9;
-			right = 11;
+			forward = 2;
+			left = 4;
+			right = 7;
 			if (road_node->conn.Num() == 1)
 			{
 				if (rand() % 16 >= forward)
@@ -1386,7 +1436,7 @@ void AMainTerrain::process_blocks(TArray<Block>& blocks)
 	for (auto& b : blocks)
 	{
 		b.get_self_figure();
-		if (!b.shrink_size(b.self_figure, 5.0f))
+		if (!b.shrink_size(b.self_figure, 4.0f))
 		{
 			wrong_blocks++;
 		}
@@ -1426,20 +1476,41 @@ void AMainTerrain::process_houses(Block& block)
 	}
 	else if (block.get_type() == block_type::residential)
 	{
-		for (int i = 3; i < block.self_figure.Num(); i += 2)
+		int self_figure_count = block.self_figure.Num();
+		for (int i = 1; i <= self_figure_count; i++)
 		{
-			auto angle2 = AllGeometry::calculate_angle(block.self_figure[i - 2].point, block.self_figure[i - 1].point,
-													   block.self_figure[i].point, true);
-			auto angle1 = AllGeometry::calculate_angle(block.self_figure[i - 3].point, block.self_figure[i - 2].point,
-													   block.self_figure[i - 1].point, true);
-			FVector point1 =
-				AllGeometry::create_segment_at_angle(block.self_figure[i - 2].point, block.self_figure[i - 1].point,
-													 block.self_figure[i - 1].point, angle1 / 2, 15);
-			FVector point2 =
-				AllGeometry::create_segment_at_angle(block.self_figure[i - 3].point, block.self_figure[i - 2].point,
-													 block.self_figure[i - 2].point, angle2 / 2, 15);
-			TArray<FVector> figure{point1, point2};
-			block.create_house(figure, 10, 10);
+			// auto angle2 = AllGeometry::calculate_angle(block.self_figure[i - 2].point, block.self_figure[i -
+			// 1].point, 										   block.self_figure[i].point, true); auto angle1 =
+			// AllGeometry::calculate_angle(block.self_figure[i - 3].point, block.self_figure[i - 2].point,
+			// 										   block.self_figure[i - 1].point, true);
+			// FVector point1 =
+			// 	AllGeometry::create_segment_at_angle(block.self_figure[i - 2].point, block.self_figure[i - 1].point,
+			// 										 block.self_figure[i - 1].point, angle1 / 2, 15);
+			// FVector point2 =
+			// 	AllGeometry::create_segment_at_angle(block.self_figure[i - 3].point, block.self_figure[i - 2].point,
+			// 										 block.self_figure[i - 2].point, angle2 / 2, 15);
+			// TArray<FVector> figure{point1, point2};
+			// block.create_house(figure, 10, 10);
+
+			FVector point1 = block.self_figure[i - 1].point;
+			FVector point2 = block.self_figure[i % self_figure_count].point;
+			double dist = FVector::Distance(point1, point2);
+			double general_width = 0;
+			for (; general_width < dist;)
+			{
+				double width = rand() % 3 + 5;
+				if (rand() % 7 > 1)
+				{
+					double length = rand() % 5 + 10;
+					double height = (rand() % 2 + 1) * 4;
+					FVector point_beg = AllGeometry::create_segment_at_angle(
+						point1, point2, (point2 - point1) / dist * (general_width + (width / 2)) + point1, 90, 1);
+					FVector point_end = AllGeometry::create_segment_at_angle(point1, point2, point_beg, 90, length);
+					TArray<FVector> figure{point_beg, point_end};
+					block.create_house(figure, width, height);
+				}
+				general_width += (width + 1);
+			}
 		}
 	}
 }
@@ -1480,6 +1551,9 @@ void AMainTerrain::draw_all()
 		}
 	}
 
+
+	// MeshComponent2->SetMaterial(NULL, LuxuryMaterial);
+
 	for (auto r : figures_array)
 	{
 		// FColor color;
@@ -1504,6 +1578,18 @@ void AMainTerrain::draw_all()
 				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
 			MeshComponent2->SetupAttachment(RootComponent);
 			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // Включаем коллизии
+			MeshComponent2->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic); // Устанавливаем тип объекта
+			MeshComponent2->SetCollisionResponseToAllChannels(ECR_Ignore); // Игнорируем все каналы
+			MeshComponent2->SetCollisionResponseToChannel(ECC_Visibility,
+														  ECR_Block); // Разрешаем пересечение с каналом видимости
+
+			MeshComponent2->bUseAsyncCooking = true; // Включаем асинхронное создание коллизий
+			MeshComponent2->SetGenerateOverlapEvents(true); // Включаем события перекрытия
+			MeshComponent2->bSelectable = true; // Делаем компонент интерактивным
+			MeshComponent2->OnBeginCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOver);
+			MeshComponent2->OnEndCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOutLuxury);
+
 			MeshComponent2->SetMaterial(NULL, LuxuryMaterial);
 			create_mesh(MeshComponent2, figure_to_print, 1, 0.5);
 		}
@@ -1513,6 +1599,18 @@ void AMainTerrain::draw_all()
 				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
 			MeshComponent2->SetupAttachment(RootComponent);
 			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // Включаем коллизии
+			MeshComponent2->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic); // Устанавливаем тип объекта
+			MeshComponent2->SetCollisionResponseToAllChannels(ECR_Ignore); // Игнорируем все каналы
+			MeshComponent2->SetCollisionResponseToChannel(ECC_Visibility,
+														  ECR_Block); // Разрешаем пересечение с каналом видимости
+
+			MeshComponent2->bUseAsyncCooking = true; // Включаем асинхронное создание коллизий
+			MeshComponent2->SetGenerateOverlapEvents(true); // Включаем события перекрытия
+			MeshComponent2->bSelectable = true; // Делаем компонент интерактивным
+			MeshComponent2->OnBeginCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOver);
+			MeshComponent2->OnEndCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOutDock);
+
 			MeshComponent2->SetMaterial(NULL, DocsMaterial);
 			create_mesh(MeshComponent2, figure_to_print, 1, 0.5);
 		}
@@ -1522,8 +1620,20 @@ void AMainTerrain::draw_all()
 				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
 			MeshComponent2->SetupAttachment(RootComponent);
 			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // Включаем коллизии
+			MeshComponent2->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic); // Устанавливаем тип объекта
+			MeshComponent2->SetCollisionResponseToAllChannels(ECR_Ignore); // Игнорируем все каналы
+			MeshComponent2->SetCollisionResponseToChannel(ECC_Visibility,
+														  ECR_Block); // Разрешаем пересечение с каналом видимости
+
+			MeshComponent2->bUseAsyncCooking = true; // Включаем асинхронное создание коллизий
+			MeshComponent2->SetGenerateOverlapEvents(true); // Включаем события перекрытия
+			MeshComponent2->bSelectable = true; // Делаем компонент интерактивным
+			MeshComponent2->OnBeginCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOver);
+			MeshComponent2->OnEndCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOutRoyal);
+
 			MeshComponent2->SetMaterial(NULL, RoyalMaterial);
-			create_mesh(MeshComponent2, figure_to_print, 1, 1);
+			create_mesh(MeshComponent2, figure_to_print, 1, 0.5);
 		}
 		else if (r.get_type() == block_type::slums)
 		{
@@ -1531,8 +1641,19 @@ void AMainTerrain::draw_all()
 				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
 			MeshComponent2->SetupAttachment(RootComponent);
 			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // Включаем коллизии
+			MeshComponent2->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic); // Устанавливаем тип объекта
+			MeshComponent2->SetCollisionResponseToAllChannels(ECR_Ignore); // Игнорируем все каналы
+			MeshComponent2->SetCollisionResponseToChannel(ECC_Visibility,
+														  ECR_Block); // Разрешаем пересечение с каналом видимости
+
+			MeshComponent2->bUseAsyncCooking = true; // Включаем асинхронное создание коллизий
+			MeshComponent2->SetGenerateOverlapEvents(true); // Включаем события перекрытия
+			MeshComponent2->bSelectable = true; // Делаем компонент интерактивным
+			MeshComponent2->OnBeginCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOver);
+			MeshComponent2->OnEndCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOutSlums);
 			MeshComponent2->SetMaterial(NULL, SlumsMaterial);
-			create_mesh(MeshComponent2, figure_to_print, 1, 1);
+			create_mesh(MeshComponent2, figure_to_print, 1, 0.5);
 		}
 		else if (r.get_type() == block_type::residential)
 		{
@@ -1540,8 +1661,19 @@ void AMainTerrain::draw_all()
 				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
 			MeshComponent2->SetupAttachment(RootComponent);
 			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // Включаем коллизии
+			MeshComponent2->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic); // Устанавливаем тип объекта
+			MeshComponent2->SetCollisionResponseToAllChannels(ECR_Ignore); // Игнорируем все каналы
+			MeshComponent2->SetCollisionResponseToChannel(ECC_Visibility,
+														  ECR_Block); // Разрешаем пересечение с каналом видимости
+
+			MeshComponent2->bUseAsyncCooking = true; // Включаем асинхронное создание коллизий
+			MeshComponent2->SetGenerateOverlapEvents(true); // Включаем события перекрытия
+			MeshComponent2->bSelectable = true; // Делаем компонент интерактивным
+			MeshComponent2->OnBeginCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOver);
+			MeshComponent2->OnEndCursorOver.AddDynamic(this, &AMainTerrain::OnMouseOutResidential);
 			MeshComponent2->SetMaterial(NULL, ResidenceMaterial);
-			create_mesh(MeshComponent2, figure_to_print, 1, 1);
+			create_mesh(MeshComponent2, figure_to_print, 1, 0.5);
 		}
 		for (auto& p : r.houses)
 		{
@@ -1549,6 +1681,15 @@ void AMainTerrain::draw_all()
 				NewObject<UProceduralMeshComponent>(this, UProceduralMeshComponent::StaticClass());
 			MeshComponent2->SetupAttachment(RootComponent);
 			MeshComponent2->RegisterComponent();
+			MeshComponent2->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // Включаем коллизии
+			MeshComponent2->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic); // Устанавливаем тип объекта
+			MeshComponent2->SetCollisionResponseToAllChannels(ECR_Ignore); // Игнорируем все каналы
+			MeshComponent2->SetCollisionResponseToChannel(ECC_Visibility,
+														  ECR_Block); // Разрешаем пересечение с каналом видимости
+
+			MeshComponent2->bUseAsyncCooking = true; // Включаем асинхронное создание коллизий
+			MeshComponent2->SetGenerateOverlapEvents(true); // Включаем события перекрытия
+			MeshComponent2->bSelectable = true; // Делаем компонент интерактивным
 			MeshComponent2->SetMaterial(NULL, BaseMaterial);
 			create_mesh(MeshComponent2, p.house_figure, 0, p.height);
 		}
@@ -1574,6 +1715,6 @@ void AMainTerrain::draw_all()
 		// {
 		// 	river_figure.figure.Swap(i, N - i - 1);
 		// }
-		create_mesh(MeshComponent2, river_figure.figure, 1, 1);
+		create_mesh(MeshComponent2, river_figure.figure, 1, 0.5);
 	}
 }

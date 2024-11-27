@@ -186,4 +186,5 @@ public:
 	static bool IsPointInsidePolygon(const FVector& Point, const TArray<FVector>& Polygon);
 	static void TriangulatePolygon(const TArray<FVector>& Polygon, TArray<int32>& Triangles);
 	static bool is_point_in_figure(FVector& point_, TArray<FVector>& figure);
+	static float point_to_seg_distance(const FVector& SegmentStart, const FVector& SegmentEnd, const FVector& Point);
 };
