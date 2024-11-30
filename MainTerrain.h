@@ -73,46 +73,16 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 
 private:
-	void add_conn(TSharedPtr<Node> node1, TSharedPtr<Node> node2);
-	TSharedPtr<Node> insert_conn(TSharedPtr<Node> node1_to_insert, TSharedPtr<Node> node2_to_insert,
-								 FVector node3_point);
-	void create_terrain();
-	void move_river(TSharedPtr<Node>& node1, TSharedPtr<Node>& node2);
-	void move_road(TSharedPtr<Node>& node);
-	void create_guiding_rivers();
-	void create_guiding_river_segment(TSharedPtr<Node> start_point, TSharedPtr<Node> end_point,
-									  TSharedPtr<Node> start_point_left, TSharedPtr<Node> start_point_right);
-	void process_bridges();
-	void create_guiding_roads();
-	void create_usual_roads();
-	TOptional<TSharedPtr<Node>> create_segment(TArray<TSharedPtr<Node>>& array, TSharedPtr<Node> start_point,
-											   TSharedPtr<Node> end_point, bool to_exect_point, point_type type,
-											   double max_length);
-	bool create_guiding_road_segment(TSharedPtr<Node>& start_point, TSharedPtr<Node>& end_point);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<FVector> BaseVertices, float StarterHeight,
 					 float ExtrusionHeight);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float StarterHeight,
 					 float ExtrusionHeight);
 	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices, float StarterHeight,
 					 float ExtrusionHeight);
-	void shrink_roads();
-	void point_shift(FVector& point);
-	void get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block>& fig_array, int figure_threshold);
-	void get_river_figure();
-	void process_blocks(TArray<Block>& blocks);
-	void process_houses(Block& block);
+
 	void draw_all();
 	void get_cursor_hit_location();
-	TArray<TSharedPtr<Node>> river;
-	TArray<TSharedPtr<Node>> guiding_river;
-	TArray<TTuple<TSharedPtr<Node>, TSharedPtr<Node>>> bridges;
-	TArray<TSharedPtr<Node>> roads;
-	TArray<TSharedPtr<Node>> road_centers;
-	TArray<FVector> map_points_array;
 	TArray<TSharedPtr<Node>> map_borders_array;
-	TArray<TSharedPtr<Node>> guididng_roads_array;
-	TArray<WeightedPoint> weighted_points;
 	TArray<Block> figures_array;
-	TArray<House> houses_array;
 	Block river_figure;
 };
