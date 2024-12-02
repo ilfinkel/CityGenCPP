@@ -598,10 +598,20 @@ void AllGeometry::TriangulatePolygon(const TArray<FVector>& Vertices, TArray<int
 			if (IsPointInsidePolygon(TriangleCenter, Vertices) &&
 				IsEar(Vertices, PrevIndex, CurrIndex, NextIndex, RemainingVertices))
 			{
-				// Добавление треугольника
-				Triangles.Add(PrevIndex);
-				Triangles.Add(CurrIndex);
-				Triangles.Add(NextIndex);
+				if (AllGeometry::calculate_angle(Vertices[PrevIndex], Vertices[CurrIndex], Vertices[NextIndex], true) >
+					180)
+				{
+					// Добавление треугольника
+					Triangles.Add(PrevIndex);
+					Triangles.Add(CurrIndex);
+					Triangles.Add(NextIndex);
+				}
+				else
+				{
+					Triangles.Add(NextIndex);
+					Triangles.Add(CurrIndex);
+					Triangles.Add(PrevIndex);
+				}
 
 				// Удаляем текущее ухо
 				RemainingVertices.RemoveAt(i);

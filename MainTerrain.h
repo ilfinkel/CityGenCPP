@@ -5,6 +5,7 @@
 #include <random>
 
 #include "Algo/Reverse.h"
+#include "Camera/CameraComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -73,14 +74,17 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 
 private:
-	void create_mesh(UProceduralMeshComponent* Mesh, TArray<FVector> BaseVertices, float StarterHeight,
-					 float ExtrusionHeight);
-	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float StarterHeight,
-					 float ExtrusionHeight);
-	void create_mesh(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices, float StarterHeight,
-					 float ExtrusionHeight);
-
-	void draw_all();
+	void create_mesh_3d(UProceduralMeshComponent* Mesh, TArray<FVector> BaseVertices, float StarterHeight,
+						float ExtrusionHeight);
+	void create_mesh_3d(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float StarterHeight,
+						float ExtrusionHeight);
+	void create_mesh_3d(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices, float StarterHeight,
+						float ExtrusionHeight);
+	void create_mesh_2d(UProceduralMeshComponent* Mesh, TArray<FVector> BaseVertices, float StarterHeight);
+	void create_mesh_2d(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Node>> BaseVertices, float StarterHeight);
+	void create_mesh_2d(UProceduralMeshComponent* Mesh, TArray<TSharedPtr<Point>> BaseVertices, float StarterHeight);
+	void draw_all_3d();
+	void draw_all_2d();
 	void get_cursor_hit_location();
 	TArray<TSharedPtr<Node>> map_borders_array;
 	TArray<Block> figures_array;

@@ -157,10 +157,10 @@ void TerrainGen::create_terrain(TArray<Block>& figures_array_, Block& river_figu
 	add_conn(map_node2, map_node3);
 	add_conn(map_node3, map_node4);
 	add_conn(map_node4, map_node1);
-	map_borders_array.Add(map_node1);
-	map_borders_array.Add(map_node2);
-	map_borders_array.Add(map_node3);
 	map_borders_array.Add(map_node4);
+	map_borders_array.Add(map_node3);
+	map_borders_array.Add(map_node2);
+	map_borders_array.Add(map_node1);
 	double points_count = 64;
 	double av_size = (x_size + y_size) / 2;
 
