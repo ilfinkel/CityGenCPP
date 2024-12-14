@@ -84,7 +84,8 @@ struct Conn
 
 struct Node
 {
-	Node(double X, double Y, double Z) : node(MakeShared<Point>(FVector(X, Y, Z))) {};
+	Node(double X, double Y, double Z, int debug_ind = 0) :
+		node(MakeShared<Point>(FVector(X, Y, Z))), debug_ind_(debug_ind) {};
 
 	Node() : node(MakeShared<Point>(FVector(0, 0, 0))) {};
 
@@ -107,9 +108,13 @@ struct Node
 	void add_connection(const TSharedPtr<Node>& node_);
 	void delete_me();
 	bool operator==(const Node&) const { return this->node->point == node->point; }
+	void print_connections();
 
 protected:
 	TSharedPtr<Point> node;
+
+public:
+	int debug_ind_;
 };
 struct House
 {
@@ -118,20 +123,20 @@ struct House
 	TArray<FVector> house_figure;
 	double height;
 };
-struct Block
+struct District
 {
-	Block()
+	District()
 	{
 		type = block_type::unknown;
 		area = 0;
 		figure = TArray<TSharedPtr<Point>>();
 	};
-	~Block()
+	~District()
 	{
 		figure.Empty();
 		self_figure.Empty();
 	};
-	Block(TArray<TSharedPtr<Point>> figure_);
+	District(TArray<TSharedPtr<Point>> figure_);
 	TArray<TSharedPtr<Point>> figure;
 	TArray<Point> self_figure;
 	TArray<House> houses;
@@ -167,6 +172,8 @@ public:
 		bool is_opened);
 	static TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> is_intersect_array(
 		FVector line1_begin, FVector line1_end, const TArray<TSharedPtr<Node>>& lines, bool is_opened);
+	static TOptional<FVector> is_intersect_array(FVector line_begin, FVector line_end,
+												 const TArray<FVector>& array_point, bool is_opened);
 	static TOptional<TSharedPtr<Node>> is_intersect_array_clear(const TSharedPtr<Node>& line1_begin,
 																const TSharedPtr<Node>& line1_end,
 																const TArray<TSharedPtr<Node>>& lines, bool is_opened);
@@ -176,15 +183,18 @@ public:
 													   const TArray<TSharedPtr<Node>>& lines, bool is_opened);
 	static FVector create_segment_at_angle(const FVector& line_begin, const FVector& line_end,
 										   const FVector& line_beginPoint, double angle_in_degrees, double length);
-	static double calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork = false);
+	static float calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork = false);
+	static float calculate_angle_clock(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork = false);
+	static float calculate_angle_counterclock(const FVector& A, const FVector& B, const FVector& C,
+											  bool is_clockwork = false);
 	static float get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices);
-	static float get_poygon_area(const TArray<Point>& Vertices);
+	static float get_poygon_area(TArray<Point>& Vertices);
 	static bool IsConvex(const FVector& Prev, const FVector& Curr, const FVector& Next);
-	static bool IsPointInTriangle(const FVector& P, const FVector& A, const FVector& B, const FVector& C);
-	static bool IsEar(const TArray<FVector>& Vertices, int32 PrevIndex, int32 CurrIndex, int32 NextIndex,
-					  const TArray<int32>& RemainingVertices);
-	static bool IsPointInsidePolygon(const FVector& Point, const TArray<FVector>& Polygon);
+	static bool IsEar(TArray<FVector> Vertices, int32 PrevIndex, int32 CurrIndex, int32 NextIndex,
+					  TArray<int32> RemainingVertices);
+	static bool IsPointInTriangle(const FVector& Point, const FVector& A, const FVector& B, const FVector& C);
+
 	static void TriangulatePolygon(const TArray<FVector>& Polygon, TArray<int32>& Triangles);
-	static bool is_point_in_figure(FVector& point_, TArray<FVector>& figure);
+	static bool is_point_in_figure(FVector point_, TArray<FVector> figure);
 	static float point_to_seg_distance(const FVector& SegmentStart, const FVector& SegmentEnd, const FVector& Point);
 };

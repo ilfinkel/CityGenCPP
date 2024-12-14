@@ -137,8 +137,9 @@ void TerrainGen::move_road(TSharedPtr<Node>& node)
 	}
 }
 
-void TerrainGen::create_terrain(TArray<Block>& figures_array_, Block& river_figure_,
-								TArray<TSharedPtr<Node>>& map_borders_array_)
+void TerrainGen::create_terrain(TArray<TSharedPtr<Node>>& roads_, TArray<District>& figures_array_,
+								District& river_figure_, TArray<TSharedPtr<Node>>& map_borders_array_,
+								TArray<FVector>& debug_points_array_)
 {
 	river.Empty();
 	roads.Empty();
@@ -183,7 +184,10 @@ void TerrainGen::create_terrain(TArray<Block>& figures_array_, Block& river_figu
 		}
 	}
 
+	double StartTime1 = FPlatformTime::Seconds();
 	create_guiding_rivers();
+	double EndTime1 = FPlatformTime::Seconds();
+	double StartTime3 = FPlatformTime::Seconds();
 	get_river_figure();
 	for (int iter = 0; iter < 100; iter++)
 	{
@@ -194,9 +198,12 @@ void TerrainGen::create_terrain(TArray<Block>& figures_array_, Block& river_figu
 	}
 	process_bridges();
 
+	double EndTime3 = FPlatformTime::Seconds();
+	double StartTime4 = FPlatformTime::Seconds();
 	create_guiding_roads();
-
-	for (int iter = 0; iter < 100; iter++)
+	double EndTime4 = FPlatformTime::Seconds();
+	double StartTime5 = FPlatformTime::Seconds();
+	for (int iter = 0; iter < 10; iter++)
 	{
 		for (auto& r : roads)
 		{
@@ -213,7 +220,8 @@ void TerrainGen::create_terrain(TArray<Block>& figures_array_, Block& river_figu
 			move_road(r);
 		}
 	}
-
+	double EndTime5 = FPlatformTime::Seconds();
+	double StartTime6 = FPlatformTime::Seconds();
 	int old_nodes = 0;
 	while (roads.Num() != old_nodes)
 	{
@@ -224,7 +232,8 @@ void TerrainGen::create_terrain(TArray<Block>& figures_array_, Block& river_figu
 			break;
 		}
 	}
-
+	double EndTime6 = FPlatformTime::Seconds();
+	double StartTime7 = FPlatformTime::Seconds();
 	for (int i = 0; i < 2; i++)
 	{
 		for (auto& r : roads)
@@ -241,18 +250,212 @@ void TerrainGen::create_terrain(TArray<Block>& figures_array_, Block& river_figu
 			move_road(r);
 		}
 	}
+	// TSharedPtr<Node> node1 = MakeShared<Node>(1000, 1000, 0, 1);
+	// TSharedPtr<Node> node2 = MakeShared<Node>(2000, 1000, 0, 2);
+	// TSharedPtr<Node> node3 = MakeShared<Node>(2000, 2000, 0, 3);
+	// TSharedPtr<Node> node4 = MakeShared<Node>(1000, 2000, 0, 4);
+	// TSharedPtr<Node> node5 = MakeShared<Node>(1500, 1700, 0, 5);
+	// TSharedPtr<Node> node6 = MakeShared<Node>(1500, 800, 0, 5);
+	// TSharedPtr<Node> node1 = MakeShared<Node>(0.000, 1960.000, 0);
+	// TSharedPtr<Node> node2 = MakeShared<Node>(164.373, 1994.857, 0);
+	// TSharedPtr<Node> node3 = MakeShared<Node>(82.187, 1977.429, 0);
+	// TSharedPtr<Node> node4 = MakeShared<Node>(246.560, 2012.286, 0);
+	// TSharedPtr<Node> node5 = MakeShared<Node>(295.586, 2033.505, 0);
+	// TSharedPtr<Node> node6 = MakeShared<Node>(380.564, 2055.432, 0);
+	// TSharedPtr<Node> node7 = MakeShared<Node>(478.542, 2075.239, 0);
+	// TSharedPtr<Node> node8 = MakeShared<Node>(574.115, 2102.578, 0);
+	// TSharedPtr<Node> node9 = MakeShared<Node>(671.394, 2117.085, 0);
+	// TSharedPtr<Node> node10 = MakeShared<Node>(738.247, 2133.047, 0);
+	// TSharedPtr<Node> node11 = MakeShared<Node>(817.780, 2146.081, 0);
+	// TSharedPtr<Node> node12 = MakeShared<Node>(898.744, 2138.277, 0);
+	// TSharedPtr<Node> node13 = MakeShared<Node>(988.615, 2123.589, 0);
+	// TSharedPtr<Node> node14 = MakeShared<Node>(1085.368, 2147.567, 0);
+	// TSharedPtr<Node> node15 = MakeShared<Node>(1183.306, 2166.981, 0);
+	// TSharedPtr<Node> node16 = MakeShared<Node>(1265.614, 2198.283, 0);
+	// TSharedPtr<Node> node17 = MakeShared<Node>(1308.204, 2242.366, 0);
+	// TSharedPtr<Node> node18 = MakeShared<Node>(1382.228, 2268.474, 0);
+	// TSharedPtr<Node> node19 = MakeShared<Node>(1471.647, 2285.639, 0);
+	// TSharedPtr<Node> node20 = MakeShared<Node>(1559.949, 2300.519, 0);
+	// TSharedPtr<Node> node21 = MakeShared<Node>(1646.761, 2321.838, 0);
+	// TSharedPtr<Node> node22 = MakeShared<Node>(1735.269, 2342.497, 0);
+	// TSharedPtr<Node> node23 = MakeShared<Node>(1816.095, 2356.922, 0);
+	// TSharedPtr<Node> node24 = MakeShared<Node>(1844.711, 2418.158, 0);
+	// TSharedPtr<Node> node25 = MakeShared<Node>(1881.314, 2492.885, 0);
+	// TSharedPtr<Node> node26 = MakeShared<Node>(1917.917, 2567.612, 0);
+	// TSharedPtr<Node> node27 = MakeShared<Node>(1932.504, 2597.392, 0);
+	// TSharedPtr<Node> node28 = MakeShared<Node>(1890.476, 2545.029, 0);
+	// TSharedPtr<Node> node29 = MakeShared<Node>(1840.975, 2483.356, 0);
+	// TSharedPtr<Node> node30 = MakeShared<Node>(1795.610, 2406.520, 0);
+	// TSharedPtr<Node> node31 = MakeShared<Node>(1730.026, 2397.067, 0);
+	// TSharedPtr<Node> node32 = MakeShared<Node>(1641.279, 2376.692, 0);
+	// TSharedPtr<Node> node33 = MakeShared<Node>(1549.777, 2358.181, 0);
+	// TSharedPtr<Node> node34 = MakeShared<Node>(1458.542, 2337.467, 0);
+	// TSharedPtr<Node> node35 = MakeShared<Node>(1370.094, 2320.976, 0);
+	// TSharedPtr<Node> node36 = MakeShared<Node>(1316.307, 2314.063, 0);
+	// TSharedPtr<Node> node37 = MakeShared<Node>(1277.770, 2276.628, 0);
+	// TSharedPtr<Node> node38 = MakeShared<Node>(1197.056, 2241.291, 0);
+	// TSharedPtr<Node> node39 = MakeShared<Node>(1090.378, 2213.529, 0);
+	// TSharedPtr<Node> node40 = MakeShared<Node>(978.517, 2181.847, 0);
+	// TSharedPtr<Node> node41 = MakeShared<Node>(877.711, 2190.958, 0);
+	// TSharedPtr<Node> node42 = MakeShared<Node>(804.365, 2201.632, 0);
+	// TSharedPtr<Node> node43 = MakeShared<Node>(717.986, 2183.307, 0);
+	// TSharedPtr<Node> node44 = MakeShared<Node>(656.562, 2191.527, 0);
+	// TSharedPtr<Node> node45 = MakeShared<Node>(569.210, 2174.382, 0);
+	// TSharedPtr<Node> node46 = MakeShared<Node>(482.074, 2154.286, 0);
+	// TSharedPtr<Node> node47 = MakeShared<Node>(389.835, 2139.345, 0);
+	// TSharedPtr<Node> node48 = MakeShared<Node>(311.907, 2115.287, 0);
+	// TSharedPtr<Node> node49 = MakeShared<Node>(244.292, 2092.048, 0);
+	// TSharedPtr<Node> node50 = MakeShared<Node>(162.861, 2074.698, 0);
+	// TSharedPtr<Node> node51 = MakeShared<Node>(81.431, 2057.349, 0);
+	// TSharedPtr<Node> node52 = MakeShared<Node>(0.000, 2040.000, 0);
+	// //
+	// //
+	// add_conn(node1, node2);
+	// add_conn(node2, node3);
+	// add_conn(node3, node4);
+	// add_conn(node4, node5);
+	// add_conn(node5, node6);
+	// add_conn(node6, node7);
+	// add_conn(node7, node8);
+	// add_conn(node8, node9);
+	// add_conn(node9, node10);
+	// add_conn(node10, node11);
+	// add_conn(node11, node12);
+	// add_conn(node12, node13);
+	// add_conn(node13, node14);
+	// add_conn(node14, node15);
+	// add_conn(node15, node16);
+	// add_conn(node16, node17);
+	// add_conn(node17, node18);
+	// add_conn(node18, node19);
+	// add_conn(node19, node20);
+	// add_conn(node20, node21);
+	// add_conn(node21, node22);
+	// add_conn(node22, node23);
+	// add_conn(node23, node24);
+	// add_conn(node24, node25);
+	// add_conn(node25, node26);
+	// add_conn(node26, node27);
+	// add_conn(node27, node28);
+	// add_conn(node28, node29);
+	// add_conn(node29, node30);
+	// add_conn(node30, node31);
+	// add_conn(node31, node32);
+	// add_conn(node32, node33);
+	// add_conn(node33, node34);
+	// add_conn(node34, node35);
+	// add_conn(node35, node36);
+	// add_conn(node36, node37);
+	// add_conn(node37, node38);
+	// add_conn(node38, node39);
+	// add_conn(node39, node40);
+	// add_conn(node40, node41);
+	// add_conn(node41, node42);
+	// add_conn(node42, node43);
+	// add_conn(node43, node44);
+	// add_conn(node44, node45);
+	// add_conn(node45, node46);
+	// add_conn(node46, node47);
+	// add_conn(node47, node48);
+	// add_conn(node48, node49);
+	// add_conn(node49, node50);
+	// add_conn(node50, node51);
+	// add_conn(node51, node52);
+	// add_conn(node52, node1);
+	// roads.Add(node1);
+	// roads.Add(node2);
+	// roads.Add(node3);
+	// roads.Add(node4);
+	// roads.Add(node5);
+	// roads.Add(node6);
+	// roads.Add(node7);
+	// roads.Add(node8);
+	// roads.Add(node9);
+	// roads.Add(node10);
+	// roads.Add(node11);
+	// roads.Add(node12);
+	// roads.Add(node13);
+	// roads.Add(node14);
+	// roads.Add(node15);
+	// roads.Add(node16);
+	// roads.Add(node17);
+	// roads.Add(node18);
+	// roads.Add(node19);
+	// roads.Add(node20);
+	// roads.Add(node21);
+	// roads.Add(node22);
+	// roads.Add(node23);
+	// roads.Add(node24);
+	// roads.Add(node25);
+	// roads.Add(node26);
+	// roads.Add(node27);
+	// roads.Add(node28);
+	// roads.Add(node29);
+	// roads.Add(node30);
+	// roads.Add(node31);
+	// roads.Add(node32);
+	// roads.Add(node33);
+	// roads.Add(node34);
+	// roads.Add(node35);
+	// roads.Add(node36);
+	// roads.Add(node37);
+	// roads.Add(node38);
+	// roads.Add(node39);
+	// roads.Add(node40);
+	// roads.Add(node41);
+	// roads.Add(node42);
+	// roads.Add(node43);
+	// roads.Add(node44);
+	// roads.Add(node45);
+	// roads.Add(node46);
+	// roads.Add(node47);
+	// roads.Add(node48);
+	// roads.Add(node49);
+	// roads.Add(node50);
+	// roads.Add(node51);
+	// roads.Add(node52);
 
+	double EndTime7 = FPlatformTime::Seconds();
+
+	double StartTime8 = FPlatformTime::Seconds();
 	shrink_roads();
+	double EndTime8 = FPlatformTime::Seconds();
+	double StartTime9 = FPlatformTime::Seconds();
 	get_closed_figures(roads, figures_array, 200);
-	// smooth_blocks(figures_array);
+	double EndTime9 = FPlatformTime::Seconds();
+	double StartTime10 = FPlatformTime::Seconds();
 	process_blocks(figures_array);
+	double EndTime10 = FPlatformTime::Seconds();
+
+	for (int i = 0; i < roads.Num(); i++)
+	{
+		if (roads[i]->conn.Num() != roads[i]->get_node()->blocks_nearby.Num())
+		{
+			FVector def_point = roads[i]->get_point();
+			debug_points_array_.Add(def_point);
+		}
+	}
+
+	double StartTime11 = FPlatformTime::Seconds();
 	for (auto& b : figures_array)
 	{
 		process_houses(b);
 	}
+	double EndTime11 = FPlatformTime::Seconds();
+	[[maybe_unused]] double time1 = EndTime1 - StartTime1;
+	[[maybe_unused]] double time3 = EndTime3 - StartTime3;
+	[[maybe_unused]] double time4 = EndTime4 - StartTime4;
+	[[maybe_unused]] double time5 = EndTime5 - StartTime5;
+	[[maybe_unused]] double time6 = EndTime6 - StartTime6;
+	[[maybe_unused]] double time7 = EndTime7 - StartTime7;
+	[[maybe_unused]] double time8 = EndTime8 - StartTime8;
+	[[maybe_unused]] double time9 = EndTime9 - StartTime9;
+	[[maybe_unused]] double time10 = EndTime10 - StartTime10;
+	[[maybe_unused]] double time11 = EndTime11 - StartTime11;
 	figures_array_ = figures_array;
 	river_figure_ = river_figure;
 	map_borders_array_ = map_borders_array;
+	roads_ = roads;
 }
 
 void TerrainGen::create_guiding_rivers()
@@ -630,8 +833,8 @@ void TerrainGen::create_usual_roads()
 		if (!road_node->is_used())
 		{
 			forward = 2;
-			left = 4;
-			right = 7;
+			left = 6;
+			right = 10;
 			if (road_node->conn.Num() == 1)
 			{
 				if (rand() % 16 >= forward)
@@ -813,8 +1016,19 @@ TOptional<TSharedPtr<Node>> TerrainGen::create_segment(TArray<TSharedPtr<Node>>&
 		{
 			end_point = intersection.GetValue();
 			tries++;
-			if (tries > 10 || FVector::Distance(start_point->get_point(), end_point->get_point()) > max_length)
+			if (tries > 10 || FVector::Distance(start_point->get_point(), end_point->get_point()) > max_length
+				// ||				to_exect_point
+			)
 			{
+				// auto presise_intersect = AllGeometry::is_intersect_array(start_point->get_point(),
+				// backup_endpoint->get_point(), array, false);
+				// if (presise_intersect.IsSet())
+				// {
+				// 	end_point =
+				// insert_conn(presise_intersect->Value.Key,
+				// presise_intersect->Value.Value,
+				// 							presise_intersect->Key);
+				// }
 				break;
 			}
 			intersection = AllGeometry::is_intersect_array_clear(start_point, end_point, array, false);
@@ -852,6 +1066,7 @@ TOptional<TSharedPtr<Node>> TerrainGen::create_segment(TArray<TSharedPtr<Node>>&
 		start_point = end_point;
 	}
 	while (end_point->get_point() != backup_endpoint->get_point());
+
 	if (end_point->get_point() == backup_endpoint->get_point())
 	{
 		end_point = backup_endpoint;
@@ -875,7 +1090,7 @@ void TerrainGen::point_shift(FVector& point)
 	point += bias;
 }
 
-void TerrainGen::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block>& fig_array, int figure_threshold)
+void TerrainGen::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<District>& fig_array, int figure_threshold)
 {
 	for (auto l : lines)
 	{
@@ -883,19 +1098,26 @@ void TerrainGen::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block
 		{
 			if (!lconn->figure->IsEmpty() || lconn->not_in_figure)
 			{
+				// UE_LOG(LogTemp, Warning, TEXT("Продолжили!"));
 				continue;
 			}
+			// UE_LOG(LogTemp, Warning, TEXT("----------Начал вывод фигуры, размер фигуры %d"), lines.Num());
 			TSharedPtr<TArray<TSharedPtr<Point>>> figure_array = MakeShared<TArray<TSharedPtr<Point>>>();
 			TArray<TSharedPtr<Conn>> conn_array;
 			conn_array.Add(lconn);
 			auto first_node = l;
+
+			// first_node->print_connections();
 			auto second_node = lconn->node;
+			// second_node->print_connections();
 			figure_array->Add(l->get_node());
 			figure_array->Add(lconn->node->get_node());
 			TSharedPtr<Node> rightest_node;
 			TSharedPtr<Conn> this_conn;
 			bool some_error = false;
 			bool not_in_figure = false;
+			double general_angle = 0;
+			// while (!figure_array->Contains(second_node))
 			while (second_node->get_point() != l->get_node()->point)
 			{
 				double smallest_angle = 360;
@@ -912,9 +1134,19 @@ void TerrainGen::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block
 						this_conn = second_node->conn[i];
 					}
 				}
+				general_angle += smallest_angle;
 				if (smallest_angle == 360)
 				{
 					not_in_figure = true;
+					break;
+				}
+
+				// UE_LOG(LogTemp, Warning, TEXT("Добавили точку %f, %f, index %d"), rightest_node->get_node()->point.X,
+				// 	   rightest_node->get_node()->point.Y, rightest_node->debug_ind_);
+				// rightest_node->print_connections();
+				if (!this_conn->figure->IsEmpty())
+				{
+					some_error = true;
 					break;
 				}
 				figure_array->Add(rightest_node->get_node());
@@ -932,7 +1164,7 @@ void TerrainGen::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block
 			{
 				continue;
 			}
-			if (not_in_figure)
+			else if (not_in_figure)
 			{
 				for (auto conn : conn_array)
 				{
@@ -945,20 +1177,24 @@ void TerrainGen::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Block
 				{
 					conn->figure = figure_array;
 				}
-				fig_array.Add(Block(*figure_array));
+				if (general_angle / (figure_array->Num() - 1) < 180)
+				{
+					// UE_LOG(LogTemp, Warning, TEXT("Фигура добавлена, размер %d"), figure_array->Num());
+					fig_array.Add(District(*figure_array));
+				}
 			}
 		}
 	}
 }
 void TerrainGen::get_river_figure()
 {
-	TArray<Block> river_fig_array;
-	get_closed_figures(river, river_fig_array, TNumericLimits<int>::Max());
+	TArray<District> river_fig_array;
+	get_closed_figures(river, river_fig_array, 1000);
 	if (river_fig_array.IsEmpty())
 	{
 		return;
 	}
-	river_fig_array.Sort([this](Block Item1, Block Item2) { return Item1.figure.Num() > Item2.figure.Num(); });
+	river_fig_array.Sort([this](District Item1, District Item2) { return Item1.figure.Num() > Item2.figure.Num(); });
 
 	river_figure = river_fig_array[0];
 	river.RemoveAll(
@@ -1043,10 +1279,22 @@ void TerrainGen::get_river_figure()
 // 		b.area = AllGeometry::get_poygon_area(b.figure);
 // 	}
 // }
-void TerrainGen::process_blocks(TArray<Block>& blocks)
+void TerrainGen::process_blocks(TArray<District>& blocks)
 {
-	blocks.Sort([this](Block Item1, Block Item2) { return Item1.area > Item2.area; });
+	// blocks.RemoveAll([this](District& Item1) { return !(Item1.shrink_size(Item1.self_figure, 0.0f)); });
+	int wrong_blocks = 0;
+	// for (auto& b : blocks)
+	// {
+	// 	b.get_self_figure();
+	// 	if (!b.shrink_size(b.self_figure, 0.5f))
+	// 	{
+	// 		wrong_blocks++;
+	// 	}
+	// 	b.area = AllGeometry::get_poygon_area(b.self_figure);
+	// }
 
+
+	blocks.Sort([this](District Item1, District Item2) { return Item1.area > Item2.area; });
 	double royal_area = 0;
 	bool royal_found = false;
 	// bool dock_found = false;
@@ -1253,18 +1501,8 @@ void TerrainGen::process_blocks(TArray<Block>& blocks)
 		}
 	}
 	while (named_blocks < blocks_count && old_named_blocks != named_blocks);
-	int wrong_blocks = 0;
-	for (auto& b : blocks)
-	{
-		b.get_self_figure();
-		if (!b.shrink_size(b.self_figure, 4.0f))
-		{
-			wrong_blocks++;
-		}
-		b.area = AllGeometry::get_poygon_area(b.self_figure);
-	}
 }
-void TerrainGen::process_houses(Block& block)
+void TerrainGen::process_houses(District& block)
 {
 	FVector block_center(0, 0, 0);
 	for (auto p : block.figure)

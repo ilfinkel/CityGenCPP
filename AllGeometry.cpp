@@ -1,10 +1,10 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "AllGeometry.h"
 
 
-Block::Block(TArray<TSharedPtr<Point>> figure_)
+District::District(TArray<TSharedPtr<Point>> figure_)
 {
 	// figure = figure_;
 	bool is_found;
@@ -40,14 +40,14 @@ Block::Block(TArray<TSharedPtr<Point>> figure_)
 
 	area = AllGeometry::get_poygon_area(figure);
 	type = block_type::unknown;
-	if (area < 50000)
-	{
-		set_type(block_type::empty);
-	}
+	// if (area < 50000)
+	// {
+	// 	set_type(block_type::empty);
+	// }
 	get_self_figure();
 }
 
-void Block::set_type(block_type type_)
+void District::set_type(block_type type_)
 {
 	type = type_;
 	for (int i = 0; i < figure.Num() - 2; i++)
@@ -55,7 +55,7 @@ void Block::set_type(block_type type_)
 		figure[i]->blocks_nearby.Add(type_);
 	}
 }
-bool Block::is_point_in_self_figure(FVector point_)
+bool District::is_point_in_self_figure(FVector point_)
 {
 	TArray<FVector> figure_to_check;
 	for (auto& a : self_figure)
@@ -64,7 +64,7 @@ bool Block::is_point_in_self_figure(FVector point_)
 	}
 	return AllGeometry::is_point_in_figure(point_, figure_to_check);
 }
-bool Block::is_point_in_figure(FVector point_)
+bool District::is_point_in_figure(FVector point_)
 {
 	TArray<FVector> figure_to_check;
 	for (auto& a : figure)
@@ -73,7 +73,7 @@ bool Block::is_point_in_figure(FVector point_)
 	}
 	return AllGeometry::is_point_in_figure(point_, figure_to_check);
 }
-void Block::get_self_figure()
+void District::get_self_figure()
 {
 	if (!self_figure.IsEmpty())
 	{
@@ -86,7 +86,7 @@ void Block::get_self_figure()
 	}
 }
 
-bool Block::shrink_size(TArray<Point>& Vertices, float size_delta)
+bool District::shrink_size(TArray<Point>& Vertices, float size_delta)
 {
 	int32 NumVertices = Vertices.Num();
 	auto backup_vertices = Vertices;
@@ -96,64 +96,43 @@ bool Block::shrink_size(TArray<Point>& Vertices, float size_delta)
 		return false;
 	}
 	TArray<FVector> new_vertices;
-	for (int i = 1; i <= NumVertices; ++i)
+	for (int i = 0; i < NumVertices; ++i)
 	{
-		double angle = AllGeometry::calculate_angle(Vertices[i - 1].point, Vertices[i % NumVertices].point,
-													Vertices[(i + 1) % NumVertices].point, true);
-		FVector new_point = AllGeometry::create_segment_at_angle(
-			Vertices[i - 1].point, Vertices[i % NumVertices].point, Vertices[i % NumVertices].point, angle / 2,
-			size_delta / FMath::Sin(FMath::DegreesToRadians(angle / 2)));
-		auto intersection = is_line_intersect(Vertices[i % NumVertices].point, new_point);
-		new_point = intersection.IsSet() ? intersection.GetValue() : new_point;
-
-		bool is_in = true;
-		for (int j = 1; j <= NumVertices; ++j)
+		auto Prev = (i + NumVertices - 1) % NumVertices;
+		auto Curr = i;
+		auto Next = (i + 1) % NumVertices;
+		FVector new_point1 =
+			AllGeometry::create_segment_at_angle(Vertices[Prev].point, Vertices[Curr].point,
+												 (Vertices[Prev].point + Vertices[Curr].point) / 2, 90, size_delta);
+		FVector new_point2 =
+			AllGeometry::create_segment_at_angle(Vertices[Curr].point, Vertices[Next].point,
+												 (Vertices[Next].point + Vertices[Curr].point) / 2, 90, size_delta);
+		FVector new_point3 =
+			AllGeometry::create_segment_at_angle(Vertices[Prev].point, Vertices[Curr].point, new_point1, 0, 5000);
+		FVector new_point4 =
+			AllGeometry::create_segment_at_angle(Vertices[Next].point, Vertices[Curr].point, new_point2, 0, 5000);
+		auto intersection = AllGeometry::is_intersect(new_point1, new_point2, new_point3, new_point4, false);
+		if (intersection.IsSet())
 		{
-			if (AllGeometry::point_to_seg_distance(Vertices[j - 1].point, Vertices[j % NumVertices].point, new_point) <
-				size_delta)
+			for (int j = 1; j <= figure.Num(); j++)
 			{
-				is_in = false;
-				break;
+				if (AllGeometry::point_to_seg_distance(figure[j - 1]->point, figure[j % figure.Num()]->point,
+													   intersection.GetValue()))
+				{
+					new_vertices.Add(intersection.GetValue());
+				}
 			}
 		}
-		if (is_in)
-		{
-			new_vertices.Add(new_point);
-		}
-		// Vertices[i % NumVertices] = new_point;
 	}
-	Vertices.Empty();
-	NumVertices = new_vertices.Num();
-	if (NumVertices < 3)
+	for (auto& v : new_vertices)
 	{
-		return false;
+		Vertices.Add(v);
 	}
-	for (int i = 1; i <= new_vertices.Num(); ++i)
-	{
-		// if (!is_point_in_figure(new_vertices[i % NumVertices]))
-		// {
-		// 	new_vertices[i % NumVertices] = (new_vertices[i - 1] + new_vertices[(i + 1) % NumVertices]) / 2;
-		// 	if (!is_point_in_figure(new_vertices[i % NumVertices]))
-		// 	{
-		// 		return false;
-		// 	}
-		// 	// set_type(block_type::unknown);
-		// 	// return;
-		// }
-		Vertices.Add(new_vertices[i % NumVertices]);
-	}
-	// for (int i = 1; i < Vertices.Num(); ++i)
-	// {
-	// 	if (FVector::Distance(backup_vertices[i - 1].point, backup_vertices[i].point) <
-	// 		FVector::Distance(Vertices[i - 1].point, Vertices[i].point))
-	// 	{
-	// 		set_type(block_type::unknown);
-	// 		return;
-	// 	}
-	// }
+
+	area = AllGeometry::get_poygon_area(Vertices);
 	return true;
 }
-TOptional<FVector> Block::is_line_intersect(FVector point1, FVector point2)
+TOptional<FVector> District::is_line_intersect(FVector point1, FVector point2)
 {
 	int NumVertices = self_figure.Num();
 	for (int i = 1; i <= NumVertices; i++)
@@ -180,7 +159,7 @@ TOptional<FVector> Block::is_line_intersect(FVector point1, FVector point2)
 	}
 	return TOptional<FVector>();
 }
-bool Block::create_house(TArray<FVector> given_line, double width, double height)
+bool District::create_house(TArray<FVector> given_line, double width, double height)
 {
 	if (given_line.Num() < 2)
 	{
@@ -271,6 +250,14 @@ void Node::delete_me()
 				break;
 			}
 		}
+	}
+}
+void Node::print_connections()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Я: %d"), debug_ind_);
+	for (auto& c : conn)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("---Мое соединение: %d"), c->node->debug_ind_);
 	}
 }
 
@@ -383,7 +370,21 @@ TOptional<TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>>> AllGeomet
 	TTuple<FVector, TTuple<TSharedPtr<Node>, TSharedPtr<Node>>> final_tuple{intersect_point_final, point_line};
 	return final_tuple;
 }
-
+TOptional<FVector> AllGeometry::is_intersect_array(FVector line_begin, FVector line_end,
+												   const TArray<FVector>& array_point, bool is_opened)
+{
+	int NumVertices = array_point.Num();
+	for (int i = 1; i <= NumVertices; i++)
+	{
+		TOptional<FVector> intersect =
+			AllGeometry::is_intersect(line_begin, line_end, array_point[i - 1], array_point[i % NumVertices], false);
+		if (intersect.IsSet())
+		{
+			return intersect.GetValue();
+		}
+	}
+	return TOptional<FVector>();
+}
 
 TOptional<TSharedPtr<Node>> AllGeometry::is_intersect_array_clear(const TSharedPtr<Node>& line_begin,
 																  const TSharedPtr<Node>& line_end,
@@ -441,7 +442,7 @@ FVector AllGeometry::create_segment_at_angle(const FVector& line_begin, const FV
 	return line_endPoint;
 }
 
-double AllGeometry::calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork)
+float AllGeometry::calculate_angle(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork)
 {
 	FVector BA = A - B;
 	FVector BC = C - B;
@@ -458,9 +459,17 @@ double AllGeometry::calculate_angle(const FVector& A, const FVector& B, const FV
 			AngleRadians = 2 * PI - AngleRadians;
 		}
 	}
-	double AngleDegrees = FMath::RadiansToDegrees(AngleRadians);
+	// double
 
-	return AngleDegrees;
+	return FMath::RadiansToDegrees(AngleRadians);
+}
+float AllGeometry::calculate_angle_clock(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork)
+{
+	return calculate_angle(A, B, C, true);
+}
+float AllGeometry::calculate_angle_counterclock(const FVector& A, const FVector& B, const FVector& C, bool is_clockwork)
+{
+	return 360 - calculate_angle(A, B, C, true);
 }
 
 float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
@@ -485,8 +494,13 @@ float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
 
 	return Area;
 }
-float AllGeometry::get_poygon_area(const TArray<Point>& Vertices)
+float AllGeometry::get_poygon_area(TArray<Point>& Vertices)
 {
+	if (Vertices.begin() != Vertices.end())
+	{
+		auto new_end = *Vertices.begin();
+		Vertices.Add(new_end);
+	}
 	int32 NumVertices = Vertices.Num();
 	if (NumVertices < 3)
 	{
@@ -515,72 +529,86 @@ bool AllGeometry::IsConvex(const FVector& Prev, const FVector& Curr, const FVect
 	FVector Edge2 = Next - Curr;
 	return FVector::CrossProduct(Edge1, Edge2).Z <= 0;
 }
-bool AllGeometry::IsPointInTriangle(const FVector& P, const FVector& A, const FVector& B, const FVector& C)
-{
-	FVector v0 = C - A;
-	FVector v1 = B - A;
-	FVector v2 = P - A;
-
-	float dot00 = FVector::DotProduct(v0, v0);
-	float dot01 = FVector::DotProduct(v0, v1);
-	float dot02 = FVector::DotProduct(v0, v2);
-	float dot11 = FVector::DotProduct(v1, v1);
-	float dot12 = FVector::DotProduct(v1, v2);
-
-	float invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
-	float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-	float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
-
-	return (u >= 0) && (v >= 0) && (u + v < 1);
-}
-
-bool AllGeometry::IsEar(const TArray<FVector>& Vertices, int32 PrevIndex, int32 CurrIndex, int32 NextIndex,
-						const TArray<int32>& RemainingVertices)
+bool AllGeometry::IsEar(const TArray<FVector> Vertices, int32 PrevIndex, int32 CurrIndex, int32 NextIndex,
+						const TArray<int32> RemainingVertices)
 {
 	FVector A = Vertices[PrevIndex];
 	FVector B = Vertices[CurrIndex];
 	FVector C = Vertices[NextIndex];
-
-	for (int32 Index : RemainingVertices)
+	TArray<FVector> fig_array{A, B, C};
+	for (int Index : RemainingVertices)
 	{
-		if (Index != PrevIndex && Index != CurrIndex && Index != NextIndex)
+		if (Index != PrevIndex && Index != CurrIndex && Index != NextIndex &&
+			AllGeometry::IsPointInTriangle(Vertices[Index], A, B, C))
 		{
-			if (IsPointInTriangle(Vertices[Index], A, B, C))
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 
 	return true;
 }
-
-bool AllGeometry::IsPointInsidePolygon(const FVector& Point, const TArray<FVector>& Polygon)
+bool AllGeometry::IsPointInTriangle(const FVector& Point, const FVector& A, const FVector& B, const FVector& C)
 {
-	int32 Intersections = 0;
-	FVector FarPoint = Point + FVector(0, 10000, 0); // Далеко расположенная точка на линии
+	auto Sign = [](const FVector& P1, const FVector& P2, const FVector& P3)
+	{ return (P1.X - P3.X) * (P2.Y - P3.Y) - (P2.X - P3.X) * (P1.Y - P3.Y); };
 
-	for (int32 i = 0; i < Polygon.Num(); i++)
-	{
-		FVector A = Polygon[i];
-		FVector B = Polygon[(i + 1) % Polygon.Num()];
+	// Вычисляем знаки
+	float D1 = Sign(Point, A, B);
+	float D2 = Sign(Point, B, C);
+	float D3 = Sign(Point, C, A);
 
-		if (AllGeometry::is_intersect(Point, FarPoint, A, B, true).IsSet())
-		{
-			Intersections++;
-		}
-	}
+	// Проверяем, одинаковы ли знаки (все положительные или все отрицательные)
+	bool HasNeg = (D1 < 0) || (D2 < 0) || (D3 < 0);
+	bool HasPos = (D1 > 0) || (D2 > 0) || (D3 > 0);
 
-	return (Intersections % 2 == 1); // Проверка по четности
+	return !(HasNeg && HasPos);
 }
 void AllGeometry::TriangulatePolygon(const TArray<FVector>& Vertices, TArray<int32>& Triangles)
 {
+	int32 vertice_num = Vertices.Num();
 	TArray<int32> RemainingVertices;
-	for (int32 i = 0; i < Vertices.Num(); i++)
+	if ((Vertices[0] - Vertices[Vertices.Num() - 1]).Length() < 0.0001)
 	{
-		RemainingVertices.Add(i);
+		vertice_num -= 1;
+		if (Vertices.Num() - 1 < 3)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Недостаточно вершин для триангуляции."));
+			return;
+		}
+		// Инициализируем все вершины
+		for (int32 i = 0; i < vertice_num; i++)
+		{
+			auto Prev = Vertices[(i + vertice_num - 1) % vertice_num];
+			auto Curr = Vertices[i];
+			auto Next = Vertices[(i + 1) % vertice_num];
+			float Angle = AllGeometry::calculate_angle_counterclock(Prev, Curr, Next);
+			if (Angle < 179.9 || Angle > 180.1)
+			{
+				RemainingVertices.Add(i);
+			}
+		}
 	}
-
+	else
+	{
+		if (Vertices.Num() < 3)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Недостаточно вершин для триангуляции."));
+			return;
+		}
+		// Инициализируем все вершины
+		for (int32 i = 0; i < vertice_num; i++)
+		{
+			auto Prev = Vertices[(i + vertice_num - 1) % vertice_num];
+			auto Curr = Vertices[i];
+			auto Next = Vertices[(i + 1) % vertice_num];
+			float Angle = AllGeometry::calculate_angle_counterclock(Prev, Curr, Next);
+			if (Angle < 179.9 || Angle > 180.1)
+			{
+				RemainingVertices.Add(i);
+			}
+		}
+	}
+	// Основной цикл триангуляции
 	while (RemainingVertices.Num() > 2)
 	{
 		bool EarFound = false;
@@ -591,29 +619,23 @@ void AllGeometry::TriangulatePolygon(const TArray<FVector>& Vertices, TArray<int
 			int32 CurrIndex = RemainingVertices[i];
 			int32 NextIndex = RemainingVertices[(i + 1) % RemainingVertices.Num()];
 
-			// Центр треугольника для проверки
-			FVector TriangleCenter = (Vertices[PrevIndex] + Vertices[CurrIndex] + Vertices[NextIndex]) / 3;
-
-			// Проверка на то, что центр внутри фигуры
-			if (IsPointInsidePolygon(TriangleCenter, Vertices) &&
-				IsEar(Vertices, PrevIndex, CurrIndex, NextIndex, RemainingVertices))
+			// Угол проверяем здесь
+			float Angle = AllGeometry::calculate_angle_counterclock(Vertices[PrevIndex], Vertices[CurrIndex],
+																	Vertices[NextIndex]);
+			if (Angle >= 180.0f)
 			{
-				if (AllGeometry::calculate_angle(Vertices[PrevIndex], Vertices[CurrIndex], Vertices[NextIndex], true) >
-					180)
-				{
-					// Добавление треугольника
-					Triangles.Add(PrevIndex);
-					Triangles.Add(CurrIndex);
-					Triangles.Add(NextIndex);
-				}
-				else
-				{
-					Triangles.Add(NextIndex);
-					Triangles.Add(CurrIndex);
-					Triangles.Add(PrevIndex);
-				}
+				continue; // Пропускаем невыпуклые углы
+			}
 
-				// Удаляем текущее ухо
+			// Проверка, является ли треугольник ухом
+			if (AllGeometry::IsEar(Vertices, PrevIndex, CurrIndex, NextIndex, RemainingVertices))
+			{
+				// Добавляем треугольник в результат
+				Triangles.Add(PrevIndex);
+				Triangles.Add(CurrIndex);
+				Triangles.Add(NextIndex);
+
+				// Удаляем текущую вершину из оставшихся
 				RemainingVertices.RemoveAt(i);
 				EarFound = true;
 				break;
@@ -622,23 +644,31 @@ void AllGeometry::TriangulatePolygon(const TArray<FVector>& Vertices, TArray<int
 
 		if (!EarFound)
 		{
-			break;
+			return;
 		}
 	}
 }
-bool AllGeometry::is_point_in_figure(FVector& point_, TArray<FVector>& figure)
+bool AllGeometry::is_point_in_figure(FVector point_, TArray<FVector> figure)
 {
 	FVector point = point_;
 	FVector point2 = point_;
 	point2.Y = y_size;
 	int times_to_hit = 0;
 	int fig_num = figure.Num();
+	TOptional<FVector> old_intersec;
 	for (int i = 1; i < fig_num; i++)
 	{
-		if (AllGeometry::is_intersect(point, point2, figure[i - 1], figure[i % fig_num], false).IsSet())
+		auto intersec = AllGeometry::is_intersect(point, point2, figure[i - 1], figure[i % fig_num], false);
+		if (intersec.IsSet())
 		{
 			times_to_hit++;
 		}
+		if (old_intersec.IsSet() && intersec.IsSet() &&
+			(old_intersec.GetValue() - intersec.GetValue()).Length() < 0.01f)
+		{
+			times_to_hit--;
+		}
+		old_intersec = intersec;
 	}
 	if (times_to_hit % 2 == 1)
 	{
