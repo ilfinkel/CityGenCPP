@@ -6,13 +6,13 @@
 
 struct Node;
 
-
 enum point_type
 {
 	main,
 	main_road,
 	road,
-	river
+	river,
+	wall
 };
 enum block_type
 {
@@ -148,7 +148,7 @@ struct District
 	bool is_point_in_self_figure(FVector point_);
 	bool is_point_in_figure(FVector point_);
 	void get_self_figure();
-	bool shrink_size(TArray<Point>& Vertices, float size_delta);
+	bool shrink_size(TArray<Point>& Vertices, float road, float main_road);
 	TOptional<FVector> is_line_intersect(FVector point1, FVector point2);
 
 	bool create_house(TArray<FVector> given_line, double width, double height);
@@ -157,8 +157,6 @@ private:
 	block_type type;
 };
 
-static double x_size = 4000;
-static double y_size = 4000;
 
 class CITY_API AllGeometry
 {
@@ -188,7 +186,7 @@ public:
 	static float calculate_angle_counterclock(const FVector& A, const FVector& B, const FVector& C,
 											  bool is_clockwork = false);
 	static float get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices);
-	static float get_poygon_area(TArray<Point>& Vertices);
+	static float get_poygon_area(const TArray<Point>& Vertices);
 	static bool IsConvex(const FVector& Prev, const FVector& Curr, const FVector& Next);
 	static bool IsEar(TArray<FVector> Vertices, int32 PrevIndex, int32 CurrIndex, int32 NextIndex,
 					  TArray<int32> RemainingVertices);

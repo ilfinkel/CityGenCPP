@@ -86,44 +86,78 @@ void District::get_self_figure()
 	}
 }
 
-bool District::shrink_size(TArray<Point>& Vertices, float size_delta)
+bool District::shrink_size(TArray<Point>& Vertices, float road, float main_road)
 {
 	int32 NumVertices = Vertices.Num();
 	auto backup_vertices = Vertices;
-
-	if (NumVertices < 3 || size_delta <= 0.0f)
+	if (Vertices[0].point == Vertices[NumVertices - 1].point)
+	{
+		NumVertices--;
+	}
+	if (NumVertices < 3 || road <= 0.0f)
 	{
 		return false;
 	}
 	TArray<FVector> new_vertices;
-	for (int i = 0; i < NumVertices; ++i)
+	for (int i = 0; i <= NumVertices; ++i)
 	{
 		auto Prev = (i + NumVertices - 1) % NumVertices;
 		auto Curr = i;
 		auto Next = (i + 1) % NumVertices;
-		FVector new_point1 =
-			AllGeometry::create_segment_at_angle(Vertices[Prev].point, Vertices[Curr].point,
-												 (Vertices[Prev].point + Vertices[Curr].point) / 2, 90, size_delta);
-		FVector new_point2 =
-			AllGeometry::create_segment_at_angle(Vertices[Curr].point, Vertices[Next].point,
-												 (Vertices[Next].point + Vertices[Curr].point) / 2, 90, size_delta);
-		FVector new_point3 =
-			AllGeometry::create_segment_at_angle(Vertices[Prev].point, Vertices[Curr].point, new_point1, 0, 5000);
-		FVector new_point4 =
-			AllGeometry::create_segment_at_angle(Vertices[Next].point, Vertices[Curr].point, new_point2, 0, 5000);
-		auto intersection = AllGeometry::is_intersect(new_point1, new_point2, new_point3, new_point4, false);
+		auto angle1 =
+			AllGeometry::calculate_angle_clock(Vertices[Prev].point, Vertices[Curr].point, Vertices[Next].point);
+		float road_height1 = road;
+		float road_height2 = road;
+		if (Vertices[Prev].type == point_type::main_road && Vertices[Curr].type == point_type::main_road)
+		{
+			road_height1 = main_road;
+		}
+		if (Vertices[Next].type == point_type::main_road && Vertices[Curr].type == point_type::main_road)
+		{
+			road_height2 = main_road;
+		}
+		FVector parralel1_beg = AllGeometry::create_segment_at_angle(Vertices[Prev].point, Vertices[Curr].point,
+																	 Vertices[Prev].point, 90, road_height1);
+		FVector parralel2_beg = AllGeometry::create_segment_at_angle(Vertices[Curr].point, Vertices[Next].point,
+																	 Vertices[Next].point, 90, road_height2);
+		FVector parralel1_end =
+			AllGeometry::create_segment_at_angle(Vertices[Prev].point, Vertices[Curr].point, parralel1_beg, 0, 5000);
+		FVector parralel2_end =
+			AllGeometry::create_segment_at_angle(Vertices[Next].point, Vertices[Curr].point, parralel2_beg, 0, 5000);
+		parralel1_beg.Z = 0;
+		parralel2_beg.Z = 0;
+		parralel1_end.Z = 0;
+		parralel2_end.Z = 0;
+		auto intersection =
+			AllGeometry::is_intersect(parralel1_beg, parralel1_end, parralel2_beg, parralel2_end, false);
+
 		if (intersection.IsSet())
 		{
-			for (int j = 1; j <= figure.Num(); j++)
+			if (!is_point_in_figure(intersection.GetValue()))
 			{
-				if (AllGeometry::point_to_seg_distance(figure[j - 1]->point, figure[j % figure.Num()]->point,
-													   intersection.GetValue()))
+				continue;
+			}
+			auto angle2 = AllGeometry::calculate_angle_clock(parralel1_beg, intersection.GetValue(), parralel2_beg);
+			if (angle2 - angle1 < 0.1)
+			{
+				bool is_valid = true;
+				for (int j = 1; j <= figure.Num(); j++)
+				{
+					if (AllGeometry::point_to_seg_distance(Vertices[j - 1].point, Vertices[j % figure.Num()].point,
+														   intersection.GetValue()) < road)
+					{
+						is_valid = false;
+						break;
+					}
+				}
+				if (is_valid == true)
 				{
 					new_vertices.Add(intersection.GetValue());
 				}
 			}
 		}
 	}
+	Vertices.Empty();
 	for (auto& v : new_vertices)
 	{
 		Vertices.Add(v);
@@ -494,14 +528,15 @@ float AllGeometry::get_poygon_area(const TArray<TSharedPtr<Point>>& Vertices)
 
 	return Area;
 }
-float AllGeometry::get_poygon_area(TArray<Point>& Vertices)
+float AllGeometry::get_poygon_area(const TArray<Point>& Vertices)
 {
-	if (Vertices.begin() != Vertices.end())
+	auto vertices_new = Vertices;
+	if (vertices_new.begin() != vertices_new.end())
 	{
 		auto new_end = *Vertices.begin();
-		Vertices.Add(new_end);
+		vertices_new.Add(new_end);
 	}
-	int32 NumVertices = Vertices.Num();
+	int32 NumVertices = vertices_new.Num();
 	if (NumVertices < 3)
 	{
 		return 0.0f;
@@ -511,8 +546,8 @@ float AllGeometry::get_poygon_area(TArray<Point>& Vertices)
 
 	for (int32 i = 1; i <= NumVertices; ++i)
 	{
-		const FVector& CurrentVertex = Vertices[i - 1].point;
-		const FVector& NextVertex = Vertices[i % NumVertices].point;
+		const FVector& CurrentVertex = vertices_new[i - 1].point;
+		const FVector& NextVertex = vertices_new[i % NumVertices].point;
 
 		Area += FMath::Abs(CurrentVertex.X * NextVertex.Y - CurrentVertex.Y * NextVertex.X);
 	}
@@ -652,7 +687,7 @@ bool AllGeometry::is_point_in_figure(FVector point_, TArray<FVector> figure)
 {
 	FVector point = point_;
 	FVector point2 = point_;
-	point2.Y = y_size;
+	point2.Y += 5000;
 	int times_to_hit = 0;
 	int fig_num = figure.Num();
 	TOptional<FVector> old_intersec;

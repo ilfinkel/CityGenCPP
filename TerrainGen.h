@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <City/AllGeometry.h>
+#include <City/MainTerrain.h>
 
 class TerrainGen
 {
@@ -14,17 +15,18 @@ public:
 	double av_road_length;
 	double max_road_length;
 	double river_road_distance;
+	double x_size;
+	double y_size;
+	ECityPlan city_plan;
 
 	TArray<District> figures_array;
 	District river_figure;
-
-	TerrainGen(FVector center_, double av_distance_, double av_river_length_, double max_river_length_,
-			   double min_new_road_length_, double min_road_length_, double av_road_length_, double max_road_length_,
-			   double river_road_distance_) :
-		center(center_), av_distance(av_distance_), av_river_length(av_river_length_),
-		max_river_length(max_river_length_), min_new_road_length(min_new_road_length_),
-		min_road_length(min_road_length_), av_road_length(av_road_length_), max_road_length(max_road_length_),
-		river_road_distance(river_road_distance_) {};
+	TerrainGen(FMapParams& map_params) :
+		center(map_params.center), av_distance(map_params.av_distance), av_river_length(map_params.av_river_length),
+		max_river_length(map_params.max_river_length), min_new_road_length(map_params.min_new_road_length),
+		min_road_length(map_params.min_road_length), av_road_length(map_params.av_road_length),
+		max_road_length(map_params.max_road_length), river_road_distance(map_params.river_road_distance),
+		x_size(map_params.x_size), y_size(map_params.y_size), city_plan(map_params.city_plan) {};
 
 	void create_terrain(TArray<TSharedPtr<Node>>& roads_, TArray<District>& figures_array_, District& river_figure_,
 						TArray<TSharedPtr<Node>>& map_borders_array_, TArray<FVector>& debug_points_array_);

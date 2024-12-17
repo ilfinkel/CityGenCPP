@@ -721,22 +721,38 @@ void TerrainGen::create_guiding_roads()
 	{
 		r->set_type(point_type::main_road);
 	}
-
-	for (int i = 0; i < road_centers.Num() - 1; i++)
+	if (city_plan == ECityPlan::combined)
 	{
-		auto local_road = road_centers;
-
-		local_road.Sort(
-			[i, this](TSharedPtr<Node> Item1, TSharedPtr<Node> Item2)
-			{
-				return FVector::Distance(road_centers[i]->get_point(), Item1->get_point()) <
-					FVector::Distance(road_centers[i]->get_point(), Item2->get_point());
-			});
-		int success_roads = 0;
-		for (int j = 0; j < local_road.Num() - 1 && success_roads < 4; j++)
+		for (int i = 0; i < road_centers.Num() - 1; i++)
 		{
-			success_roads += create_guiding_road_segment(road_centers[i], local_road[j]);
+			auto local_road = road_centers;
+
+			local_road.Sort(
+				[i, this](TSharedPtr<Node> Item1, TSharedPtr<Node> Item2)
+				{
+					return FVector::Distance(road_centers[i]->get_point(), Item1->get_point()) <
+						FVector::Distance(road_centers[i]->get_point(), Item2->get_point());
+				});
+			int success_roads = 0;
+			for (int j = 0; j < local_road.Num() - 1 && success_roads < 4; j++)
+			{
+				success_roads += create_guiding_road_segment(road_centers[i], local_road[j]);
+			}
 		}
+	}
+	else if (city_plan == ECityPlan::radial)
+	{
+		TSharedPtr<Node> closest_center;
+		float closest_dist = TNumericLimits<float>::Max();
+		for (auto r : road_centers)
+		{
+			if (FVector::Distance(r->get_point(), center) < closest_dist)
+			{
+				closest_dist = FVector::Distance(r->get_point(), center);
+				closest_center = r;
+			}
+		}
+		
 	}
 }
 
@@ -1092,6 +1108,11 @@ void TerrainGen::point_shift(FVector& point)
 
 void TerrainGen::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<District>& fig_array, int figure_threshold)
 {
+	bool is_river = false;
+	if (lines.Num() > 0 && lines[0]->get_type() == point_type::river)
+	{
+		is_river = true;
+	}
 	for (auto l : lines)
 	{
 		for (auto lconn : l->conn)
@@ -1177,7 +1198,8 @@ void TerrainGen::get_closed_figures(TArray<TSharedPtr<Node>> lines, TArray<Distr
 				{
 					conn->figure = figure_array;
 				}
-				if (general_angle / (figure_array->Num() - 1) < 180)
+				if (general_angle / (figure_array->Num() - 1) < 180 ||
+					(is_river && (general_angle / (figure_array->Num() - 1) > 180)))
 				{
 					// UE_LOG(LogTemp, Warning, TEXT("Фигура добавлена, размер %d"), figure_array->Num());
 					fig_array.Add(District(*figure_array));
@@ -1281,18 +1303,7 @@ void TerrainGen::get_river_figure()
 // }
 void TerrainGen::process_blocks(TArray<District>& blocks)
 {
-	// blocks.RemoveAll([this](District& Item1) { return !(Item1.shrink_size(Item1.self_figure, 0.0f)); });
-	int wrong_blocks = 0;
-	// for (auto& b : blocks)
-	// {
-	// 	b.get_self_figure();
-	// 	if (!b.shrink_size(b.self_figure, 0.5f))
-	// 	{
-	// 		wrong_blocks++;
-	// 	}
-	// 	b.area = AllGeometry::get_poygon_area(b.self_figure);
-	// }
-
+	blocks.RemoveAll([this](District& Item1) { return !(Item1.shrink_size(Item1.self_figure, 3.0f, 6.0)); });
 
 	blocks.Sort([this](District Item1, District Item2) { return Item1.area > Item2.area; });
 	double royal_area = 0;
